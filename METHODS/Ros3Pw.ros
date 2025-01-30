@@ -1,0 +1,25 @@
+! RCo
+! L-stable method where w stands for methods which need only an approx. of Jacobian
+! and the P stands for parabolic problems. The method is of order 3 with 3 stages
+! and stronly A-stable with R(inf)~sqrt(3)-1~0.73
+!
+! References: NEW ROSENBROCK W-METHODS OF ORDER 3 FOR PARTIAL DIFFERENTIAL ALGEBRAIC
+! 	  EQUATIONS OF INDEX 1, 2005.
+ 
+RCo%Order  = 3
+RCo%nStage = 3
+
+RCo%ga = 0.78867513459481287_dp
+
+ALLOCATE(RCo%Alpha(3,3))
+RCo%Alpha      = 0.0_dp
+RCo%Alpha(2,1) = 1.5773502691896257_dp
+RCo%Alpha(3,1) = 0.5_dp
+
+ALLOCATE(RCo%Gamma(3,3))
+RCo%Gamma(1,:) = [                RCo%ga   ,                  0.0_dp ,      0.0_dp ]
+RCo%Gamma(2,:) = [ -1.57735026918962570_dp ,                  RCo%ga ,      0.0_dp ]
+RCo%Gamma(3,:) = [ -0.67075317547305480_dp , -0.17075317547305482_dp ,      RCo%ga ]
+
+RCo%B  = [  0.10566243270259355_dp , 0.049038105676657971_dp , 0.84529946162074843_dp ]
+RCo%Be = [ -0.17863279495408180_dp , 1.0_dp/3.0_dp           , 0.84529946162074843_dp ]

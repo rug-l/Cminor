@@ -1,0 +1,39 @@
+&SCENARIO
+  Label    = 'MCM32+CAPRAM40'
+  WaitBar  = .T.
+  Simulation = .T.
+/END
+&FILES
+  SysFile  = 'RUN/TESTRUN/MCM+CAPRAM/MCM32_CAPRAM40_full.sys'  
+  DataFile = 'RUN/TESTRUN/DAT/MCM32_CAPRAM40_full.dat'
+  InitFile = 'RUN/TESTRUN/INI/urbMCM+C30m_2.ini'
+/END
+&TIMES
+  tBegin      = 0.0d0
+  tEnd        = 84600.0d0
+/END
+&METEO
+  pHSet       = .T.
+  LWCLevelmax = 2.0d-8
+  LWCLevelmin = 3.0d-4
+  Dust        = 0.5d0
+  idate       = 010621
+  rlat        = 45.0d0
+  rlon        = 0.0d0
+  Temperature0= 280.0d0
+/END
+&NUMERICS
+  RtolROW  = 1.0d-3
+  AtolGas  = 1.0d-5
+  AtolAqua = 1.0d-5
+  Error_Est = 2
+  minStp  = 1.0d-30
+  maxStp  = 300.0d0
+  ODEsolver = 'METHODS/Rodas3.ros'
+/END
+&OUTPUT
+  NetCdfFile  = 'RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_test.nc'
+  StpNetCDF   = 300.0d0
+  StpFlux     = 300.0d0
+  MatrixPrint = .F.
+/END

@@ -1,0 +1,37 @@
+ &SCENARIO
+  Label      = 'SmallStratoKPP'
+  WaitBar    = .T.
+  Simulation = .T.
+/END
+ &FILES
+  SysFile  = 'RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.sys'
+  DataFile = 'RUN/TESTRUN/DAT/RACM.dat'
+  InitFile = 'RUN/TESTRUN/INI/SmallStratoKPP.ini'
+ /END
+&TIMES
+  tBegin      = 0.0d0
+  tEnd        = 86400.0d0
+/END
+&METEO
+  pHSet       = .T.
+  LWCLevelmax = 2.0d-8
+  LWCLevelmin = 3.0d-4
+  Dust        = 1.0d0
+  idate       = 010621
+  rlat        = 45.0d0
+  rlon        = 0.0d0
+  Temperature0= 280.0d0
+/END
+&NUMERICS
+  RtolROW     = 1.0d-3
+  AtolGas     = 1.0d-4
+  Error_Est   = 2
+  minStp      = 1.0d-30
+  maxStp      = 25.0d0
+  ODEsolver   = 'METHODS/Rodas3.ros'
+/END
+&OUTPUT
+  NetCdfFile  = 'RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_test.nc'
+  StpNetCDF   = 100.0d0
+  MatrixPrint = .F.
+/END

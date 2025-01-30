@@ -1,0 +1,31 @@
+# MacOS
+.DS_Store
+
+# Libraries
+LIB/*.o
+LIB/*.mod
+#LIB/*.a
+
+LIB_D/*.o
+LIB_D/*.mod
+#LIB_D/*.a
+
+# Output log files
+OUTPUT/LocalErrorMaxima.log
+
+# Output matrices 
+MATRICES/*.SparseMat
+
+# executable files
+Cminor
+Cminor_dbg
+
+# ini, sys, run files
+RUN/TESTRUN/**/*.chem
+RUN/TESTRUN/**/*test.nc
+
+# python cache
+PYTHONSCRIPTS/__pycache__/
+
+# vim working files
+SRC/*.swp

@@ -1,0 +1,27 @@
+! Rodas3
+! Four stage third order L-stable Rosenbrock scheme By default,
+! the Jacobian is only recomputed once per step.
+!
+! Both the third order and embedded second order methods are 
+! stiffly accurate and L-stable.
+!
+! References: Sandu et al, Benchmarking stiff ODE solvers for
+! 			  atmospheric chemistry problems II, Rosenbrock solvers, 1997. 
+
+RCo%Order  = 3
+RCo%nStage = 4
+RCo%ga     = 0.5_dp
+
+ALLOCATE(RCo%Alpha(4,4))
+RCo%Alpha  = ZERO
+RCo%Alpha(3,1) = 1.0_dp
+RCo%Alpha(4,:) = [ 0.75_dp , -0.25_dp , 0.5_dp , 0.0_dp ]
+
+ALLOCATE(RCo%Gamma(4,4))
+RCo%Gamma(1,:) = [       RCo%ga   ,       0.0_dp   ,     0.0_dp     , 0.0_dp ]
+RCo%Gamma(2,:) = [       1.0_dp   ,       RCo%ga   ,     0.0_dp     , 0.0_dp ]
+RCo%Gamma(3,:) = [     -0.25_dp   ,     -0.25_dp   ,     RCo%ga     , 0.0_dp ]
+RCo%Gamma(4,:) = [ 1.0_dp/12.0_dp , 1.0_dp/12.0_dp , -2.0_dp/3.0_dp , RCo%ga ]
+
+RCo%B  = [ 5.0_dp/6.0_dp , -1.0_dp/6.0_dp , -1.0_dp/6.0_dp , 0.5_dp ]
+RCo%Be = [       0.75_dp ,       -0.25_dp ,         0.5_dp , 0.0_dp ]

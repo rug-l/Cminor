@@ -1,0 +1,89 @@
+
+COMMENT Phase Transfer Processes
+
+CLASS: HENRY 
+CO2 = aCO2        
+TEMP3:   A: 3.4e-2  B: 2440.0
+
+CLASS: HENRY 
+O3 = aO3          
+TEMP3:   A: 1.13e-2  B: 2540.0
+
+CLASS: HENRY 
+H2O2 = aH2O2      
+TEMP3:   A: 7.45e4  B: 7300.0
+
+CLASS: HENRY 
+HNO3 = aHNO3      
+TEMP3:   A: 2.1e5  B: 0.0
+ 
+CLASS: HENRY 
+NH3 =  aNH3       
+TEMP3:   A: 62.0  B: 4110.0
+
+CLASS: HENRY 
+SO2 =  aSO2       
+TEMP3:   A: 1.23  B: 3150.0
+
+
+COMMENT Dissociations
+
+CLASS: DISS
+aH2O2 = HO2m + Hp
+DTEMP:  A: 2.2e-12  B: -3730  C: 5e13
+
+CLASS: DISS
+HCO3m       = CO3mm + Hp
+DTEMP:   A: 4.68e-11  B: -1760.0  C: 5e10
+
+CLASS: DISS
+[aH2O]          =  OHm + Hp
+DTEMP:   A: 1.8e-16  B: -6800.0  C: 1.3e11
+
+CLASS: DISS
+aCO2 = HCO3m + Hp
+DTEMP:  A: 4.3e-7  B: -1000  C: 5.6e4
+
+CLASS: DISS
+aNH3  =  NH4p  + OHm
+DTEMP:   A: 1.7e-5 B: -450.0  C: 3.4e10
+
+CLASS: DISS
+aHNO3    =    NO3m + Hp
+DTEMP:   A: 15.4  B: 8700.0  C: 5.0e10
+
+CLASS: DISS  
+aSO2 =  HSO3m  + Hp
+DTEMP:   A: 1.3e-2  B: 1960.0  C: 2.0e8
+
+CLASS: DISS  
+HSO3m     =    SO3mm  + Hp
+DTEMP:   A: 6.6e-8  B: 1500.0  C: 5.0e10
+
+CLASS: DISS 
+aH2SO4 = HSO4m + Hp
+DCONST:  A: 10000.0  B: 5e10
+
+CLASS: DISS 
+HSO4m = Hp + SO4mm
+DTEMP:  A: 1.2e-2  B: 2720.0  C: 1e11
+
+
+COMMENT Aqueous Reactions 
+
+CLASS: AQUA #Ri00106
+HSO3m  + aH2O2  = SO4mm + Hp
+ASPEC1:   A: 7.45e7  B: -4430.0
+
+CLASS: AQUA #Ri00109
+aSO2  + aO3  = HSO4m + Hp
+TEMP3:   A: 2.4e4 B: 0.0
+
+CLASS: AQUA #Ri00110
+HSO3m  + aO3  = SO4mm + Hp
+TEMP3:   A: 3.5e5 B: -5530.0
+
+CLASS: AQUA #Ri00111
+SO3mm  + aO3  = SO4mm
+TEMP3:   A: 1.5e9 B: -5280.0
+

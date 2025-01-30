@@ -1,0 +1,40 @@
+&SCENARIO
+  Label      = 'RACM_ML'
+  WaitBar    = .T.
+  combustion = .F.
+/END
+&FILES
+  SysFile    = 'RUN/TESTRUN/RACM_ML/RACM_ML.sys'
+  DataFile   = 'RUN/TESTRUN/DAT/Urban.dat'
+  InitFile   = 'RUN/TESTRUN/INI/REMOTE_RACM.ini'
+/END
+&TIMES
+  tBegin      = 0.0d0
+  tEnd        = 86400.0d0
+/END
+&METEO
+  pHSet        = .T.
+  LWCLevelmax  = 2.0d-8
+  LWCLevelmin  = 3.0d-4
+  Dust         = 0.5d0
+  idate        = 190621
+  rlat         = 51.34d0
+  rlon         = 12.36d0
+  Temperature0 = 280.0d0
+/END
+&NUMERICS
+  RtolROW     = 1.0d-3
+  AtolGas     = 1.0d-4
+  AtolAqua    = 1.0d-4
+  Error_Est   = 2
+  minStp      = 1.0d-30
+  maxStp      = 50.0d0
+  ODEsolver = 'METHODS/Rodas3.ros'
+/END
+&OUTPUT
+  NetCdfFile  = 'RUN/TESTRUN/RACM_ML/RACM_ML_test.nc'
+  StpNetCDF   = 100.0d0
+  StpFlux     = -1.0d0
+  StpConc     = 600.0d0
+  MatrixPrint = .F.
+/END

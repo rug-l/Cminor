@@ -1,0 +1,38 @@
+&SCENARIO
+  Label    = 'kreidenweis2003_parcel'
+  WaitBar  = .T.
+  Simulation = .T.
+/END
+&FILES
+  SysFile  = 'RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003.sys'  
+  DataFile = 'RUN/TESTRUN/DAT/kreidenweis2003.dat'
+  InitFile = 'RUN/TESTRUN/INI/kreidenweis2003.ini'
+/END
+&TIMES
+  tBegin      = 0.0d0
+  tEnd        = 2596.0d0
+/END
+&METEO
+  adiabatic_parcel = .T.
+  RH0         = 0.95
+  pHSet       = .T.
+  Temperature0= 285.2d0
+  Pressure0   = 95000.0d0
+  updraft_velocity = 0.5d0
+  nDropletClasses = 50
+/END
+&NUMERICS
+  RtolROW  = 5.0d-5
+  AtolGas  = 1.0d-8
+  AtolAqua = 1.0d-8
+  Error_Est = 2
+  minStp  = 1.0d-30
+  maxStp  = 100.0d0
+  ODEsolver = 'METHODS/Rodas3.ros'
+/END
+&OUTPUT
+  NetCdfFile  = 'RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003_parcel_test.nc'
+  StpNetCDF   = 10.0d0
+  StpFlux     = 300.0d0
+  MatrixPrint = .F.
+/END
