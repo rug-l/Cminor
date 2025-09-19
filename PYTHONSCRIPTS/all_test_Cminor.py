@@ -10,6 +10,9 @@ from fcns_all_test_Cminor import *
 
 # routine to run exemplary atmospheric and combustion mechanisms with Cminor to see if they produce the results they should
 
+# runs to skip, enter numbers between >=1 and <=9 and the respective simulations will be skipped
+iSkipRuns = np.array([])
+
 
 # run files to be tested
 RUN_Files = np.array([ \
@@ -76,6 +79,9 @@ sys.stdout = Tee(sys.stdout, logfile)
 # global counter to count large relative errors and show at the end
 warn_counter = 0
 for iRun, runfile in enumerate(RUN_Files):
+    if iRun in iSkipRuns:
+        continue
+
     print("\n####### LABEL: "+runfile[runfile.rindex("/")+1:runfile.rindex(".run")]+" #######\n")
 
     print("Running "+runfile+"...", end="\r")
@@ -97,9 +103,14 @@ for iRun, runfile in enumerate(RUN_Files):
         warn_counter += 1
 
 if warn_counter>0:
-    print("\nFinished testing Cminor. There were large relative errors in "+str(warn_counter)+" run"+(warn_counter!=1)*"s"+"!")
+    print("\n  Finished testing Cminor. There were large relative errors in "+str(warn_counter)+" run"+(warn_counter!=1)*"s"+"!")
+    print("")
+    print("  Please note that the indicator for large errors might already trigger if tolerances have been adjusted or similar.")
+    print("  It might still be insignificant and is just a neccessary condition for a true failure.")
+    print("  Please further inspect by looking in the respective NetCDF files to compare the numerical solutions.")
 else:
     print("\nFinished testing Cminor. Everything went fine.")
+
 print("")
 print("")
 sys.stdout = original_stdout
