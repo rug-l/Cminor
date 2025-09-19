@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import netCDF4 as nc
+from jaruga_data import *
+
 plt.rc('text', usetex=True)
 plt.rc('text.latex', preamble=r'\usepackage{amsmath}')
 plt.rc('font',**{'family':'serif','serif':['Times']})
@@ -20,7 +22,9 @@ font = {'family' : 'normal',
 plt.rc('font', **font)
 
 initial_color = 'black'
-final_color   = 'red'
+final_color   = 'olive'
+row2_color    = 'black'
+jaruga_color  = "orange"
 
 fontsize_t=17
 fontsize_l=13
@@ -58,6 +62,9 @@ NH4p_values       = np.zeros((nD, 2))
 aerosol_diameters = np.zeros((nD, 2)) 
 
 tstart = np.argmin(abs(time_values-196/3600))
+
+
+n_activated = 14
 
 dropletclass_numbers = np.array([1428754.4401235012      ,\
    2029517.2410624390      ,\
@@ -112,9 +119,6 @@ dropletclass_numbers = np.array([1428754.4401235012      ,\
 ], dtype=int)
 
 
-
-n_activated = 14
-
 mol2part = 6.0221408e+17
 
 LWC_values = np.array(ds["LWC_Level"]) * 1000.0 / np.array(ds["rho_parcel"]) # g/kg
@@ -149,14 +153,20 @@ print("  SO4mm = ", 10**6 * sum(SVI_values[:,0]), "µg/m3")
 print("  NH4p  = ", 10**6 * sum(NH4p_values[:,0]), "µg/m3")
 
 
-f, axes = plt.subplot_mosaic('FAAAAG;CCDDEE', figsize=(10,8), dpi=300)
+f, axes = plt.subplot_mosaic('FAAAAG;CCDDEE', figsize=(10,8), dpi=500)
 axes['F'].axis('off')
 axes['G'].axis('off')
+
+# jaruga plots
+axes['A'].scatter(jaruga_final_x, jaruga_final_y, color=jaruga_color, marker='.', label="Jaruga et al. 2018", zorder=100000)
+axes['C'].scatter(jaruga_LWC_x, jaruga_LWC_y, color=jaruga_color, marker='.', label="Jaruga et al. 2018", zorder=100000)
+axes['D'].scatter(jaruga_SO2_x, jaruga_SO2_y, color=jaruga_color, marker='.', label="Jaruga et al. 2018", zorder=100000)
+axes['E'].scatter(jaruga_pH_x , jaruga_pH_y, color=jaruga_color, marker='.', label="Jaruga et al. 2018", zorder=100000)
 
 axes['A'].plot(aerosol_diameters[1:,0]           , SVI_values[1:,0]*10**6/abs(np.log10(aerosol_diameters[:-1,0])-np.log10(aerosol_diameters[1:,0]))               , color=initial_color , marker='s', markersize=3, label="initial")
 axes['A'].plot(aerosol_diameters[1:n_activated,1], SVI_values[1:n_activated,1]*10**6/abs(np.log10(aerosol_diameters[:n_activated-1,1])-np.log10(aerosol_diameters[1:n_activated,1])), color=final_color , marker='s', markersize=3, label="final")
 axes['A'].plot(aerosol_diameters[n_activated:,1] , SVI_values[n_activated:,1]*10**6/abs(np.log10(aerosol_diameters[n_activated-1:-1,1])-np.log10(aerosol_diameters[n_activated:,1])), color=final_color , marker='s', markersize=3)
-axes['A'].text(0.017, 3.0, "N = "+ "%d" % (sum(dropletclass_numbers[n_activated:])*rho_cloudbase/rho_0/10**6)+" cm"+r"$^{-3}$", fontsize=fontsize_t)
+axes['A'].text(0.017, 1.5, "N = "+ "%d" % (sum(dropletclass_numbers[n_activated:])*rho_cloudbase/rho_0/10**6)+" cm"+r"$^{-3}$", fontsize=fontsize_t)
 
 axes['A'].set_xscale('log')
 axes['A'].set_yscale('log')
@@ -165,11 +175,11 @@ axes['A'].set_ylabel("dS(VI)/d(logD)\n(µg/m"+r"$^3$"+" per log"+r"$_{10}$"+" si
 axes['A'].grid()
 axes['A'].legend(fontsize=fontsize_l)
 
-axes['C'].plot(LWC_values[tstart:], time_values[tstart:]*3600-196, color='black')
+axes['C'].plot(LWC_values[tstart:], time_values[tstart:]*3600-196, color=row2_color)
 axes['C'].grid()
-axes['D'].plot(SO2_values[tstart:], time_values[tstart:]*3600-196, color='black')
+axes['D'].plot(SO2_values[tstart:], time_values[tstart:]*3600-196, color=row2_color)
 axes['D'].grid()
-axes['E'].plot(-np.log10(meanpH_values[tstart:]), (time_values[tstart:]*3600-196)/2000, color='black')
+axes['E'].plot(-np.log10(meanpH_values[tstart:]), (time_values[tstart:]*3600-196)/2000, color=row2_color)
 axes['E'].grid()
 
 axes['C'].set_xlabel("LWC (g/kg)", fontsize=fontsize_t)
