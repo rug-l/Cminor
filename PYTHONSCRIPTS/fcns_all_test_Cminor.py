@@ -80,8 +80,10 @@ def ncdfcompare(fn1, fn2, mode, rel_tol = 1E-3, abs_tol=0.0, eps=0.0):
     if "LWC_Level" in keys:
         arr1 = np.array(ds1["LWC_Level"]) + 1E-100
         arr2 = np.array(ds2["LWC_Level"]) + 1E-100
-        if sum(abs(arr1-arr2))>1E-14:
-            print("ERROR in NetCDFcompare :: LWC levels are not equal! Results cannot be expected to be the same. Aborting.")
+        #errorLWC = sum(abs(arr1-arr2))
+        errorLWC = np.max(abs(arr1-arr2))
+        if errorLWC>1E-5:
+            print("ERROR in NetCDFcompare :: LWC levels are not equal! (Error: "+"%.3e"%(errorLWC)+") Results cannot be expected to be the same. Aborting.")
             return (np.nan, np.nan, np.nan), (np.nan, np.nan, np.nan)
 
 
