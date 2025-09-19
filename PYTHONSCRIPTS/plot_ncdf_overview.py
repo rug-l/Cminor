@@ -23,21 +23,22 @@ print("  Starting NetCDF overview plots.\n")
 
 mechanisms = []
 
-mechanisms = [ *mechanisms, "ERC_nheptane"]
+mechanisms = [ *mechanisms, "ERC_nHeptane"]
 mechanisms = [ *mechanisms, "LLNL_MD"]
-mechanisms = [ *mechanisms, "LLNL_nheptane"]
+mechanisms = [ *mechanisms, "LLNL_nHeptane"]
 mechanisms = [ *mechanisms, "SmallStratoKPP"]
 mechanisms = [ *mechanisms, "RACM+C24"]
 mechanisms = [ *mechanisms, "MCM_CAPRAM"]
 #mechanisms = [ *mechanisms, "MCM"]
 
+Cminor_dir = "/home/l/L.Rug/CminorKPP/Cminor/"
 
 sublabel=""
 for mechanism in mechanisms:
     LABEL = mechanism
     if mechanism=="MCM":
         name = "MCMv3.2"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/MCM/MCM_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/MCM/MCM_test.nc'
         atm = True
         plt_vars = np.array([["O1D"], ["NO", "NO2", "NO3"], ["NO"], ["NO2"], ["NO3"], ["OH"], ["O3"]], dtype=object)
         plt_vars = np.array([["O1D"], ["NO"], ["NO2"], ["O3"], ["H2O2"]], dtype=object)
@@ -47,7 +48,7 @@ for mechanism in mechanisms:
     elif mechanism=="SmallStratoKPP":
         name = "Chapman-like"
         sublabel = "(a)"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_test.nc'
         atm = True
         plt_vars = np.array([["O1D"], ["O"], ["O3"], ["NO"], ["NO2"]], dtype=object)
         spcnames = np.array(["O($^1$D)", "O", "O$_3$", "NO", "NO$_2$"])
@@ -55,7 +56,7 @@ for mechanism in mechanisms:
     elif mechanism=="RACM+C24":
         name = "RACM+CAPRAMv2.4"
         sublabel = "(b)"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/RACM+CAPRAM/RACM+C24_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/RACM+CAPRAM/RACM+C24_test.nc'
         atm = True
         plt_vars = np.array([["aNO_1_m3", "aNO2_1_m3", "aNO3_1_m3"], ["NO", "NO2", "NO3"], ["O3"], ["aO3_1_m3"], ["HO"], ["aHO_1_m3"]], dtype=object)
         spcnames = np.array(["aNO$_x$", "NO$_x$", "O$_3$", "aO$_3$", "OH", "aOH"])
@@ -63,23 +64,23 @@ for mechanism in mechanisms:
     elif mechanism=="MCM_CAPRAM":
         name = "MCMv3.2+CAPRAMv4.0"+r"$\alpha$"
         sublabel = "(c)"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_test.nc'
         atm = True
         plt_vars = np.array([["aNO_1_m3", "aNO2_1_m3", "aNO3_1_m3"], ["NO", "NO2", "NO3"], ["O3"], ["aO3_1_m3"], ["OH"], ["aHO_1_m3"]], dtype=object)
         spcnames = np.array(["aNO$_x$", "NO$_x$", "O$_3$", "aO$_3$", "OH", "aOH"])
 
-    elif mechanism=="ERC_nheptane":
+    elif mechanism=="ERC_nHeptane":
         name = "ERC $n$-heptane"
         sublabel = "(a)"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/ERC_nHeptane/ERC_nheptane_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/ERC_nHeptane/ERC_nHeptane_test.nc'
         atm = False
         plt_vars = np.array([["oh"], ["co2"], ["co"], ["h2o"], ["ho2"], ["nc7h16"]], dtype=object)
         spcnames = np.array(["OH", "CO$_2$", "CO", "H$_2$O", "HO$_2$", "C$_7$H$_{16}$"])
 
-    elif mechanism=="LLNL_nheptane":
+    elif mechanism=="LLNL_nHeptane":
         name = "LLNL $n$-heptane"
         sublabel = "(b)"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/LLNL_nHeptane/LLNL_nheptane_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_test.nc'
         atm = False
         plt_vars = np.array([["oh"], ["co2"], ["co"], ["h2o"], ["ho2"], ["nc7h16"]], dtype=object)
         spcnames = np.array(["OH", "CO$_2$", "CO", "H$_2$O", "HO$_2$", "C$_7$H$_{16}$"])
@@ -87,7 +88,7 @@ for mechanism in mechanisms:
     elif mechanism=="LLNL_MD":
         name = "LLNL methyl-decanoate"
         sublabel = "(c)"
-        fn='/Users/rug/Cminor/RUN/TESTRUN/LLNL_MD/LLNL_MD_test.nc'
+        fn=Cminor_dir+'RUN/TESTRUN/LLNL_MD/LLNL_MD_test.nc'
         atm = False
         plt_vars = np.array([["oh"], ["co2"], ["co"], ["h2o"], ["md"]], dtype=object)
         spcnames = np.array(["OH", "CO$_2$", "CO", "H$_2$O", "C$_{11}$H$_{22}$O$_2$"])
@@ -177,7 +178,7 @@ for mechanism in mechanisms:
 
         ranges[iVar, :] = [np.min(values[iVar, :]), np.max(values[iVar, :]), np.max(values[iVar, :])-np.min(values[iVar, :])]
 
-        plt.fill_between(time_values, values[iVar, :]/ranges[iVar, 1], label=last_name+" ["+"%.0f" % (ranges[iVar, 1])+"°]", alpha=0.5, color='gold')
+        plt.plot(time_values, values[iVar, :]/ranges[iVar, 1], label=last_name+" ["+"%.0f" % (ranges[iVar, 1])+"°]", alpha=0.5, color='gold', linestyle='--')
         if LWC:
             LWC_val = np.array(ds["LWC_Level"])
             LWC_min = np.min(LWC_val)
