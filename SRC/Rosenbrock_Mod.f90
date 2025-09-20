@@ -620,8 +620,9 @@ MODULE Rosenbrock_Mod
     DfDt = DfDt + Tmp
 
     rh   = 1.25_dp * SQRT( rTWO * MAXVAL( ABS(DfDt/wt) ) ) / RTolRow**pow
-  
-    absh = MIN( maxStp , Tspan(2)-Tspan(1) )
+
+    ! cut initial time step to be maximum 1% of the whole time span (1% is arbitrary, hoped to work)
+    absh = MIN( maxStp , 0.01*(Tspan(2)-Tspan(1)) )
     IF ( absh*rh > ONE )  absh = ONE/rh
     h = MAX( absh , minStp )
 
