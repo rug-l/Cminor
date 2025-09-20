@@ -265,8 +265,7 @@ MODULE InitRoutines_Mod
 
       ! Test if maximum stepsize is not to small/big
       IF ( maxStp <= ZERO ) THEN
-        WRITE(*,*) '  Maximum stepsize = ',maxStp, ' to low!'
-        STOP
+        maxStp = tEnd - tBegin
       ELSE IF ( maxStp > tEnd-tBegin ) THEN
         WRITE(*,*) '  Maximum stepsize = ',maxStp, ' to high!'
         STOP
