@@ -61,13 +61,14 @@ MODULE Rosenbrock_Mod
     REAL(dp), ALLOCATABLE :: m(:)             ! Step completion table(converted B)
     REAL(dp), ALLOCATABLE :: Be(:)            ! Step completion table for embedded method of order one less
     REAL(dp), ALLOCATABLE :: me(:)            ! Step completion table for embedded method of order one less (converted Be)
+    LOGICAL , ALLOCATABLE :: useOldRate(:)    ! if oldRate(iStg) TRUE, don't re-compute Rate at iStg
   END TYPE RosenbrockMethod_T
 
 
   TYPE(RosenbrockMethod_T) :: ROS
 
-  REAL(dp), PRIVATE :: timerStart
-  REAL(dp), ALLOCATABLE :: rRate0(:)
+  INTEGER(8), PRIVATE :: timerStart
+  REAL(dp), ALLOCATABLE :: rRate0(:), saveRate(:)
 
   INTEGER, ALLOCATABLE :: LU_Perm(:), LU_Perm_ValPtr(:), w_InvColInd(:,:,:), &
                         & bPermu(:), bInvPermu(:), bPtr(:)
@@ -103,6 +104,7 @@ MODULE Rosenbrock_Mod
     INTEGER :: iStg
 
     ALLOCATE(rhs(nDIM2))
+    IF (.NOT. ALLOCATED(saveRate)) ALLOCATE(saveRate(nreac2))
 
     ! Initial settings
     rhs = ZERO
@@ -177,11 +179,16 @@ MODULE Rosenbrock_Mod
     END DO
 
     ! Update Rates at  (t + SumA*h) , and  (Y + A*)k
-    IF (combustion) THEN
-      CALL ReactionRates( Y , Rate )
+    IF (ROS%useOldRate(iStg)) THEN
+      Rate = saveRate
     ELSE
-      CALL ReactionRates( tt , Y , Rate )
+      IF (combustion) THEN
+        CALL ReactionRates( Y , Rate )
+      ELSE
+        CALL ReactionRates( tt , Y , Rate )
+      END IF
     END IF
+    saveRate = Rate ! save rate for later use if wanted
 
     CALL UpdateEmission(Emiss, Y)
 
@@ -214,6 +221,7 @@ MODULE Rosenbrock_Mod
       Y   = MAX( ABS(Y0)  , eps ) * SIGN( ONE , Y0 )  ! concentrations =/= 0
       CALL ReactionRates( t, Y, Rate )
     END IF
+    saveRate = Rate ! save rate for later use if wanted
 
     CALL UpdateEmission(Emiss,Y)
 
@@ -528,6 +536,11 @@ MODULE Rosenbrock_Mod
     !
     DEALLOCATE(ID)
     DEALLOCATE(IPIV)
+
+    IF (.NOT. ALLOCATED(ROS%useOldRate)) THEN
+      ALLOCATE(ROS%useOldRate(ROS%nStage))
+      ROS%useOldRate(ROS%nStage) = .FALSE.
+    END IF
   END SUBROUTINE SetRosenbrockMethod
   !
   !

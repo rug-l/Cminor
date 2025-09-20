@@ -25,3 +25,5 @@ RCo%Gamma(4,:) = [ 1.0_dp/12.0_dp , 1.0_dp/12.0_dp , -2.0_dp/3.0_dp , RCo%ga ]
 
 RCo%B  = [ 5.0_dp/6.0_dp , -1.0_dp/6.0_dp , -1.0_dp/6.0_dp , 0.5_dp ]
 RCo%Be = [       0.75_dp ,       -0.25_dp ,         0.5_dp , 0.0_dp ]
+
+RCo%useOldRate = [ .FALSE., .TRUE., .FALSE., .FALSE. ]
