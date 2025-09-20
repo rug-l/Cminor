@@ -16,10 +16,11 @@ MODULE Integration_Mod
   USE Kind_Mod,         ONLY: dp
   USE Control_Mod,      ONLY: ZERO, Out, combustion, eps, minStp, maxStp, NetcdfPrint,     &
                             & ONE, rTEN, StpNetCdf, tBegin, tEnd, combustion, TimeNetCdf,  &
-                            & TimeIntegration, TimeNetCDFA, TWO, WaitBar, pressure,        &
+                            & TimeIntegration, TimeNetCDF, TWO, SIX, WaitBar, pressure,    &
                             & q_parcel, T_parcel, rho_parcel, updraft_velocity, z_parcel,  &
                             & adiabatic_parcel, nDropletClasses, RH, Pi43, m_parcel,       &
-                            & milli, rTHREE, Pi34, kilo, Start_Timer, End_Timer
+                            & milli, rTHREE, Pi34, kilo, Start_Timer, End_Timer,           &
+                            & TimerNetCDF, rho_parcel0
   !
   USE Reac_Mod,         ONLY: nDIM, nDIM2, Diag_Index, nspc, nspc2, ns_gas, iAqMassEq2,    &
                             & iRhoEq2, iZeq2, ns_AQUA, DropletClasses, iTeq2, iqEq2
@@ -34,9 +35,15 @@ MODULE Integration_Mod
   USE Rates_Mod,        ONLY: rhs_condensation, rhs_T_cond_and_parcel, rhs_q_parcel,       &
                             & rhs_rho, UpdateTempArray
 
+
   IMPLICIT NONE
   !
   INTEGER :: iBar=-1              ! waitbar increment
+
+  INTERFACE linpolate
+     MODULE PROCEDURE linpolate_vector
+     MODULE PROCEDURE linpolate_scalar
+  END INTERFACE linpolate
   !
   CONTAINS
   !
@@ -58,15 +65,20 @@ MODULE Integration_Mod
 
     ! Temporary variables:
     !
-    REAL(dp) :: Y0(nDIM2), Y(nDIM2)       ! old, current y vector
+    REAL(dp) :: Y0(nDIM2), Y(nDIM2), YNCDF(nDIM2) ! old, current, netcdf y vector
     !
     REAL(dp) :: t             ! current time
-    REAL(dp) :: time_int = 0.0d0
+    INTEGER(8) :: timer_int
 
     REAL(dp) :: h, tnew, tmp
+
+    ! temporary ncdf values
+    REAL(dp) :: tNCDF, TempNCDF, qNCDF, pNCDF, rhoNCDF, zNCDF, RHNCDF, linfac
+    REAL(dp), DIMENSION(nDropletClasses) :: nDropletsNCDF, waterMassNCDF, LWCsNCDF
+
     REAL(dp) :: error
-    REAL(dp) :: tmp_tb
-    INTEGER  :: ierr(1,1)
+    REAL(dp) :: bar_step 
+    INTEGER  :: ierr(1,1), NCDF_iTime_before, NCDF_iTime, NCDF_iTime_after
     ! 
 
     LOGICAL :: done=.FALSE.
@@ -100,112 +112,161 @@ MODULE Integration_Mod
     h = h0
 
     ! this is for the waitbar
-    tmp_tb = (tEnd-tBegin) * 0.01_dp
+    bar_step = (tEnd-tBegin) * 0.01_dp
 
-    CALL Start_Timer(time_int)
+    CALL Start_Timer(timer_int)
             
     MAIN_LOOP_ROSENBROCK_METHOD: DO 
           
       h = MIN( maxStp, MAX( minStp , h ) )
 
-        !-- Stretch the step if within 5% of tfinal-t.
-        IF ( 1.05_dp * h >= Tspan(2) - t ) THEN
-          h = ABS(Tspan(2) - t)
-          done = .TRUE.
-        END IF
-
-        DO    ! Evaluate the formula.
-          !-- LOOP FOR ADVANCING ONE STEP.
-          failed = .FALSE.      ! no failed attempts
-
-          ! Rosenbrock Timestep 
-          CALL Rosenbrock(  Y             & ! new concentration
-          &               , error         & ! error value
-          &               , ierr          & ! max error component
-          &               , Y0            & ! current concentration 
-          &               , t             & ! current time
-          &               , h             ) ! stepsize
-
-          tnew  = t + h
-          IF (done) THEN
-            tnew  = Tspan(2)    ! Hit end point exactly.
-            h     = tnew-t      ! Purify h.
-          END IF
-          Out%ndecomps   = Out%ndecomps   + 1
-          Out%nRateEvals = Out%nRateEvals + ROS%nStage
-          Out%nSolves    = Out%nSolves    + ROS%nStage
-
-          failed = (error > ONE)
-
-          IF (failed) THEN      ! failed step
-            ! Accept the solution only if the weighted error is no more than the
-            ! tolerance one.  Estimate an h that will yield an error of rtol on
-            ! the next step or the next try at taking this step, as the case may be,
-            ! and use 0.8 of this value to avoid failures.
-            Out%nfailed  = Out%nfailed+1
-            IF ( h <= minStp ) THEN
-              STOP '....Integration_Mod '
-            END IF
-
-            h    = MAX( minstp , h * MAX( rTEN, 0.8_dp * error**(-ROS%pow) ) )
-            done = .FALSE.
-          ELSE ! successful step
-            EXIT
-          END IF
-      END DO
-      Out%nsteps = Out%nsteps + 1
-
-      IF ( adiabatic_parcel ) THEN
-        rho_parcel               = Y(iRhoEq2)
-        T_parcel                 = Y(iTeq2)
-        DropletClasses%waterMass = Y(iAqMassEq2)
-        DropletClasses%wetRadius = get_wet_radii()
-        q_parcel                 = Y(iqEq2)
-        z_parcel                 = Y(izEq2)
-        pressure                 = pressure_from_height(z_parcel) ! pressure of parcel instantaneously adjusts to ambient conditions
-        RH                       = q_parcel / qsatw(T_parcel, pressure)
-      ELSE IF ( ns_AQUA>0 ) THEN
-        DropletClasses%waterMass = kilo * LWC_array(t) / rho_parcel
-        DropletClasses%wetRadius = get_wet_radii()
+      !-- Stretch the step if within 5% of tfinal-t.
+      IF ( 1.05_dp * h >= Tspan(2) - t ) THEN
+        h = ABS(Tspan(2) - t)
+        done = .TRUE.
       END IF
 
-      ! --- save to NetCDF file
-      IF ( NetCdfPrint ) THEN
-        IF ( done .OR. StpNetCDF < ZERO ) THEN 
-          CALL Start_Timer(TimeNetCDFA)
-          IF (combustion) Temperature = Y(nDIM)
-          CALL SetOutputNCDF( NetCDF, tnew , h , Y , Temperature )
-          CALL StepNetCDF( NetCDF )
-          CALL End_Timer(TimeNetCDF, TimeNetCDFA)
-        END IF
-      END IF 
+      failed = .FALSE.      ! no failed attempts
 
-      !-- Call progress bar.
-      IF ( WaitBar .AND. t-tBegin > iBar*tmp_tb ) CALL Progress(iBar)
+      ! Rosenbrock Timestep 
+      CALL Rosenbrock(  Y             & ! new concentration
+      &               , error         & ! error value
+      &               , ierr          & ! max error component
+      &               , Y0            & ! current concentration 
+      &               , t             & ! current time
+      &               , h             ) ! stepsize
 
-      !-- If there were no failures compute a new h.
-      tmp = 1.25_dp * error**ROS%pow
-      IF ( TWO * tmp > ONE ) THEN
-        h = h / tmp
-      ELSE
-        h = h * TWO
+      tnew  = t + h
+      IF (done) THEN
+        tnew  = Tspan(2)    ! Hit end point exactly.
+        h     = tnew-t      ! Purify h.
       END IF
-          
-      !-- Advance the integration one step.
-      t  = tnew
-      Y0 = Y
+      Out%ndecomps   = Out%ndecomps   + 1
+      Out%nSolves    = Out%nSolves    + ROS%nStage
 
-      !-- Termination condition for the main loop.
-      IF ( done ) EXIT  MAIN_LOOP_ROSENBROCK_METHOD
+      failed = (error > ONE)
 
+      IF (failed) THEN      ! failed step
+        ! Accept the solution only if the weighted error is no more than the
+        ! tolerance one.  Estimate an h that will yield an error of rtol on
+        ! the next step or the next try at taking this step, as the case may be,
+        ! and use 0.8 of this value to avoid failures.
+        Out%nfailed  = Out%nfailed+1
+        IF ( h <= minStp ) THEN
+          STOP '....Integration_Mod '
+        END IF
+
+        h    = MAX( minstp , h * MAX( rTEN, 0.8_dp * error**(-ROS%pow) ) )
+        done = .FALSE.
+      ELSE ! successful step
+!        WRITE(*,*) h, ","
+        Out%nsteps = Out%nsteps + 1
+
+        ! --- save to NetCDF file
+        IF ( NetCdfPrint ) THEN
+          ! check if time step exceed a NetCDF printing time
+          NCDF_iTime_before = NetCDF%iTime
+          ! calculate netcdf step after integration time step (+1 because of initial ncdf output)
+          NCDF_iTime_after = INT((tnew-tspan(1))/StpNetCdf) + 1
+
+          IF ( NCDF_iTime_after > NCDF_iTime_before .OR. StpNetCDF < ZERO .OR. done) THEN 
+            CALL Start_Timer(TimerNetCDF)
+
+            ! if done, add a step for the output at t=t_end
+            IF ( done .AND. (NCDF_iTime_after-1)*StpNetCdf<Tspan(2) ) NCDF_iTime_after = NCDF_iTime_after + 1
+
+            DO NCDF_iTime = NCDF_iTime_before+1, NCDF_iTime_after
+              ! get NetCDF printing time point
+              tNCDF = min((NCDF_iTime-1)*StpNetCdf, Tspan(2))
+              linfac = (tNCDF-t)/(eps+tnew-t)
+
+              ! interpolate concentrations
+              YNCDF = linpolate(Y0, Y, linfac)
+
+              ! linearly interpolate everything needed to the NetCDF printing time point
+              IF (combustion) THEN
+                TempNCDF = YNCDF(nDIM)
+              ELSE IF (adiabatic_parcel) THEN
+                TempNCDF        = linpolate(T_parcel, Y(iTeq2), linfac)
+                rhoNCDF         = linpolate(rho_parcel, Y(iRhoeq2), linfac)
+                qNCDF           = linpolate(q_parcel, Y(iqEq2), linfac)
+                zNCDF           = linpolate(z_parcel, Y(izEq2), linfac)
+                waterMassNCDF   = linpolate(DropletClasses%waterMass, Y(iAqMassEq2), linfac)
+
+                LWCsNCDF = LWC_array(tNCDF, waterMassNCDF, rhoNCDF)
+                pNCDF    = pressure_from_height(zNCDF)
+                RHNCDF   = qNCDF / qsatw(TempNCDF, pNCDF)
+                nDropletsNCDF = DropletClasses%Number ! currently conserved, no interpolation
+              ELSE
+                IF (ns_AQUA>0) THEN
+                  rhoNCDF       = rho_parcel0
+                  LWCsNCDF      = LWC_array(tNCDF)
+                  nDropletsNCDF = DropletClasses%Number ! currently conserved, no interpolation
+                END IF
+                TempNCDF = Temperature
+              END IF
+
+              CALL SetOutputNCDF( NetCDF,        &
+                                & tNCDF,         &
+                                & h,             &
+                                & YNCDF,         &
+                                & TempNCDF,      &
+                                & rhoNCDF,       &
+                                & qNCDF,         &
+                                & pNCDF,         &
+                                & zNCDF,         &
+                                & RHNCDF,        &
+                                & nDropletsNCDF, &
+                                & LWCsNCDF       )
+
+              CALL StepNetCDF( NetCDF )
+            END DO
+            CALL End_Timer(TimerNetCDF, TimeNetCDF)
+          END IF
+        END IF 
+
+        IF (combustion) Temperature = Y(nDIM)
+
+        IF ( adiabatic_parcel ) THEN
+          rho_parcel               = Y(iRhoEq2)
+          T_parcel                 = Y(iTeq2)
+          DropletClasses%waterMass = Y(iAqMassEq2)
+          DropletClasses%wetRadius = get_wet_radii()
+          q_parcel                 = Y(iqEq2)
+          z_parcel                 = Y(izEq2)
+          pressure                 = pressure_from_height(z_parcel) ! pressure of parcel instantaneously adjusts to ambient conditions
+          RH                       = q_parcel / qsatw(T_parcel, pressure)
+        ELSE IF ( ns_AQUA>0 ) THEN
+          DropletClasses%waterMass = kilo * LWC_array(t) / rho_parcel
+          DropletClasses%wetRadius = get_wet_radii()
+        END IF
+
+        !-- Call progress bar.
+        IF ( WaitBar .AND. tnew-tBegin > iBar*bar_step ) CALL Progress(CEILING((tnew-tBegin)/bar_step))
+
+        !-- If there were no failures compute a new h.
+        tmp = 1.25_dp * error**ROS%pow
+        IF ( TWO * tmp > ONE ) THEN
+          h = h / tmp
+        ELSE
+          h = h * TWO
+        END IF
+
+        !-- Advance the integration one step.
+        t  = tnew
+        Y0 = Y
+
+        !-- Termination condition for the main loop.
+        IF ( done ) EXIT  MAIN_LOOP_ROSENBROCK_METHOD
+      END IF
     END DO MAIN_LOOP_ROSENBROCK_METHOD  ! MAIN LOOP
-    
+
     ! save values for next initial vector
     IF ( combustion ) Temperature = Y(nDIM)
     y_iconc = Y(1:nspc2)
     h0 = h
 
-    CALL End_Timer(TimeIntegration, time_int)
+    CALL End_Timer(timer_int, TimeIntegration)
 
   END SUBROUTINE Integrate
 
@@ -215,7 +276,7 @@ MODULE Integration_Mod
     INTEGER(4)    :: j,k
     CHARACTER(69) :: bar="          Start Integration...........    ???% |                    |"
 
-    iBar = iBar + 1 ! iBar runs from 0 to 100
+    iBar = j ! iBar runs from 0 to 100
     !
     WRITE(bar(43:45),'(I3)') j
     !
@@ -226,5 +287,21 @@ MODULE Integration_Mod
     WRITE(*,'(A1,A69,$)') char(13), bar
   END SUBROUTINE Progress
   !
+
+  ! function to linearly interpolate between to values
+  FUNCTION linpolate_scalar(old, new, fac) RESULT (inbetween)
+    REAL(dp) :: old, new, fac, inbetween
+
+    inbetween = old + (new-old)*fac
+  END FUNCTION linpolate_scalar
+  FUNCTION linpolate_vector(old, new, fac) RESULT (inbetween)
+    REAL(dp), DIMENSION(:) :: old, new
+
+    REAL(dp) :: inbetween(SIZE(old))
+
+    REAL(dp) :: fac
+
+    inbetween = old + (new-old)*fac
+  END FUNCTION linpolate_vector
 
 END MODULE Integration_Mod

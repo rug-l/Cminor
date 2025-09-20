@@ -41,12 +41,12 @@
      
     USE Control_Mod,      ONLY: nD_Ptr_spc, adiabatic_parcel, rho_parcel, m_parcel, Pi, &
                               & nD_Ptr_reacs, nD_Ptr_KAT, nD_reac, ZERO, TimeRates,     &
-                              & TimeRateA, ONE, mega, Temperature0, rTEN, rln10, ln10,  &
+                              & TimerRates, ONE, mega, Temperature0, rTEN, rln10, ln10,  &
                               & rTHREE, Pi34, nDropletClasses, milli, r300, PiHalf,     &
                               & mTHIRTY, EyChiZmin, Dust, nD_KAT, Start_Timer, rFIVE,   &
                               & rTWO, rTWENTY, rTWELV, rSIX, TWO, THREE, End_Timer,     &
                               & rFOUR, FOUR, TEN, kilo, pressure, q_parcel, T_parcel,   &
-                              & updraft_velocity
+                              & updraft_velocity, Out
      
     USE Sparse_Mod,       ONLY: BA, TB_sparse, DAX_sparse
 
@@ -117,7 +117,7 @@
       !===============calc rates for ReactionSystem======================!
       !==================================================================!
  
-      CALL Start_Timer(TimeRateA)
+      CALL Start_Timer(TimerRates)
 
       Rate = ZERO
       tmpK  = ZERO
@@ -248,7 +248,8 @@
 
       IF (PRESENT(k_out)) k_out = k
 
-      CALL End_Timer(TimeRates, TimeRateA)
+      Out%nRateEvals = Out%nRateEvals + 1
+      CALL End_Timer(TimerRates, TimeRates)
     END SUBROUTINE ReactionRates_Combustion
 
     !======================================================================!
@@ -280,7 +281,7 @@
       !===============calc rates for ReactionSystem======================!
       !==================================================================!
 
-      CALL Start_Timer(TimeRateA)
+      CALL Start_Timer(TimerRates)
 
       Rate = ZERO
 
@@ -421,7 +422,8 @@
 
       !CALL Debug_Rates(ReactionSystem,Time,Meff,k,Prod,Rate)
 
-      CALL End_Timer(TimeRates, TimeRateA)
+      Out%nRateEvals = Out%nRateEvals + 1
+      CALL End_Timer(TimerRates, TimeRates)
 
     END SUBROUTINE ReactionRates_Atmosphere
 

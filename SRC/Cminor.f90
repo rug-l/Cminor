@@ -50,7 +50,7 @@ PROGRAM Cminor
                             & bPermu, bInvPermu, bPtr, InitialStepSize
 
   USE Control_Mod,      ONLY: nD_spc, List, Tspan, ZERO, clock_rate, clock_maxcount, SysUnit,   &
-                            & TimeSymbolic, TimeNetCDF, timer_finish, Start_Timer, End_Timer,   &
+                            & TimeSymbolic, TimeNetCDF, Timer_Finish, Start_Timer, End_Timer,   &
                             & TimeJac, time_read, combustion, tBegin, tEnd, T_parcel, q_parcel, &
                             & Simulation, StpNetCDF, Temperature0, SysFile, RunFile, AtolGas,   &
                             & Pressure0, Pa_to_dyncm2, Ordering, ONE, Out, adiabatic_parcel,    &
@@ -58,9 +58,9 @@ PROGRAM Cminor
                             & maxErrorCounter, MatrixPrint, ATolAll, Atolq, AtolRho, Atolz,     &
                             & iStpFlux, InitFile, FluxUnit, FluxMetaUnit, AtolWaterMass, LABEL, &
                             & FluxFile, FluxMetaFile, FluxDataPrint, z_parcel, rho_parcel,      &
-                            & DataUnit, DataFile, ConcUnit, ConcFile, clock_maxcount_int,       &
+                            & DataUnit, DataFile, ConcUnit, ConcFile, TimerNetCDF, Timer_Read,  &
                             & ConcMetaUnit, ConcMetaFile, ConcDataPrint, ChemUnit, AtolTemp,    &
-                            & AtolAqua, ChemFile, clock_rate_int
+                            & AtolAqua, ChemFile, Time_Finish, Time_Read, TimerSymbolic, RH
 
   USE Reac_Mod,         ONLY: InitValAct, y_name, bGs, y_emi, y_depos, iAs2, iGs2, nDIM2, rho,  &
                             & bHr, rnspc, bAs2, SwitchTemp, rRho, MW, rMW, PHOTO, ddelGFEdT,    &
@@ -82,7 +82,7 @@ PROGRAM Cminor
 
   USE fparser,          ONLY: initf, parsef
 
-  USE Meteo_Mod,        ONLY: Set_pseudoLWCbounds, LWCb
+  USE Meteo_Mod,        ONLY: Set_pseudoLWCbounds, LWCb, LWC_array
 
 
   IMPLICIT NONE
@@ -92,7 +92,7 @@ PROGRAM Cminor
   INTEGER  :: i,j,jj
 
   ! NetCDF stuff
-  REAL(dp) :: StartTimer
+  INTEGER(8) :: StartTimer
   REAL(dp), ALLOCATABLE :: Y(:), Y_initial(:)
   ! reaction rate array + part. derv. rate over temperatur vector
   REAL(dp), ALLOCATABLE :: Rate(:)
@@ -116,6 +116,9 @@ PROGRAM Cminor
 
   ! step size
   REAL(dp) :: h0
+  ! dummy droplet numbers if no droplets present
+  REAL(dp) :: dummyNumber(1), dummyLWC(1)
+  REAL(dp), ALLOCATABLE :: nDropletsNCDF(:), LWCsNCDF(:)
 
   !
   !================================================================
@@ -123,10 +126,8 @@ PROGRAM Cminor
   !================================================================
   !
   ! initialize clock for timing
-  CALL SYSTEM_CLOCK(count_rate = clock_rate_int    )
-  CALL SYSTEM_CLOCK(count_max  = clock_maxcount_int)
-  clock_rate     = REAL(clock_rate_int    , dp)
-  clock_maxcount = REAL(clock_maxcount_int, dp)
+  CALL SYSTEM_CLOCK(count_rate = clock_rate    )
+  CALL SYSTEM_CLOCK(count_max  = clock_maxcount)
 
   !----------------------------------------------------------------
   ! --- Print the program logo  
@@ -155,7 +156,7 @@ PROGRAM Cminor
 
   !----------------------------------------------------------------
   !  --- read the .sys data, save coefs in sparse matrix
-  CALL Start_Timer(Time_Read)
+  CALL Start_Timer(Timer_Read)
   CALL Start_Timer(Timer_Finish)
 
   WRITE(*,777,ADVANCE='NO') 'Reading sys-file .............'
@@ -292,7 +293,7 @@ PROGRAM Cminor
 
   !-----------------------------------------------------------------------
   ! --- Timer
-  CALL End_Timer(Time_Read)
+  CALL End_Timer(Timer_Read, Time_Read)
   !-----------------------------------------------------------------------
 
   !-----------------------------------------------------------------------
@@ -370,11 +371,29 @@ PROGRAM Cminor
   ! --- Initialize NetCDF output file
   !-----------------------------------------------------------------------
   IF ( NetCdfPrint ) THEN
-    CALL Start_Timer(TimeNetCDF)
+    CALL Start_Timer(TimerNetCDF)
     CALL InitNetcdf
-    CALL SetOutputNCDF( NetCDF, Tspan(1), ZERO, InitValAct, Temperature0 )
+    IF (ALLOCATED(DropletClasses%Number)) THEN
+      nDropletsNCDF = DropletClasses%Number
+      LWCsNCDF      = LWC_array(Tspan(1))
+    ELSE
+      nDropletsNCDF = dummyNumber
+      LWCsNCDF      = dummyLWC
+    END IF
+    CALL SetOutputNCDF( NetCDF,             &
+                      & Tspan(1),           &
+                      & ZERO,               &
+                      & InitValAct,         &
+                      & Temperature0,       &
+                      & rho_parcel,         &
+                      & q_parcel,           &
+                      & pressure0,          &
+                      & z_parcel,           &
+                      & RH,                 &
+                      & nDropletsNCDF,      &
+                      & LWCsNCDF            )
     CALL StepNetCDF( NetCDF )
-    CALL End_Timer(TimeNetCDF)
+    CALL End_Timer(TimerNetCDF, TimeNetCDF)
   END IF
 
   !-----------------------------------------------------------------------
@@ -384,7 +403,7 @@ PROGRAM Cminor
   !    - generating sparse matrices of LU decomposition of the Jacobian
   !-----------------------------------------------------------------------
   WRITE(*,777,ADVANCE='NO') 'Symbolic-phase................'
-  CALL Start_Timer(TimeSymbolic)
+  CALL Start_Timer(TimerSymbolic)
 
   CALL SymbolicAdd( BA , B , A )      ! symbolic addition:    BA = B + A
   CALL SparseAdd  ( BA , B , A, '-' ) ! numeric subtraction:  BA = B - A
@@ -470,7 +489,7 @@ PROGRAM Cminor
   CALL Free_Matrix_CSR( tmpJacCC )
   CALL Free_SpRowColD( temp_LU_Dec )
 
-  CALL End_Timer(TimeSymbolic)
+  CALL End_Timer(TimerSymbolic, TimeSymbolic)
 
   ALLOCATE(Y_initial(nDIM2))
   IF ( combustion ) THEN
@@ -501,7 +520,7 @@ PROGRAM Cminor
   CALL CSR_2_Empty_ValPtr( Jac_CC, nD_spc, nDropletClasses )
   CALL Jacobian_CC_ValPtr(Jac_CC , BAT , A , Rate , Y)
   Out%npds = Out%npds + 1
-  CALL End_Timer(TimeJac, StartTimer)
+  CALL End_Timer(StartTimer, TimeJac)
 
   IF ( Simulation ) THEN
     IF ( FluxDataPrint ) THEN
@@ -531,11 +550,7 @@ PROGRAM Cminor
     !-----------------------------------------------------------------------
     ! --- Start the integration routine 
     !-----------------------------------------------------------------------
-    IF ( StpNetCDF < ZERO ) THEN
       Tspan = [tBegin, tEnd]
-    ELSE 
-      Tspan = [tBegin, tBegin+StpNetCDF]
-    END IF
 
     !---- Calculate a first stepsize based on 2nd deriv.
     h0 = InitialStepSize( Jac_CC, Rate, Tspan(1), Y_initial, ROS%pow )
@@ -558,7 +573,7 @@ PROGRAM Cminor
     END DO
 
     ! --- stop timer and print output statistics
-    CALL End_Timer(Timer_Finish)
+    CALL End_Timer(Timer_Finish, Time_Finish)
 
     CALL Output_Statistics
 

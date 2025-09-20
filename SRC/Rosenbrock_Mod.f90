@@ -31,9 +31,9 @@ MODULE Rosenbrock_Mod
   USE Control_Mod,      ONLY: Out, Error_Est, ONE, aTolAll, ConcDataPrint, eps, Start_Timer, End_Timer, Tspan,  &
                             & FluxDataPrint, iStpConc, iStpFlux, mONE, Tspan_tot, TimeSetValues, m_parcel,      &
                             & RTolRow, StpConc, StpFlux, combustion, TimeConcWrite, TimeErrCalc, TimeFac,       &
-                            & TimeJac, TimeFluxWrite, TimeJacobianA, TimeRhsCalc, TimeSolve, ZERO, rho_parcel0, &
+                            & TimeJac, TimeFluxWrite, TimerJacobian, TimeRhsCalc, TimeSolve, ZERO, rho_parcel0, &
                             & AtolAqua, AtolGas, AtolTemp, maxStp, minStp, rTWO, maxErrorCounter, pressure, RH, &
-                            & nDropletClasses, adiabatic_parcel
+                            & nDropletClasses, adiabatic_parcel, TimerNumeric, TimeNumeric
   !
   USE Reac_Mod,         ONLY: y_name, nspc, SCperm, nDIM, nDIM2, iGs, iGs2, iAs2, hasGasSpc, hasAquaSpc, iqEq,  &
                             & nspc2, rRho, rho, nreac2, nDIM, nreac, rNspc, iAqMassEq2, iTeq2, iqEq2, iRhoEq2,  &
@@ -120,7 +120,7 @@ MODULE Rosenbrock_Mod
         ELSE
           CALL SparseLU( LU_Miter )
         END IF
-        CALL End_Timer(TimeFac, timerStart)
+        CALL End_Timer(timerStart, TimeFac)
 
       ELSE ! IF (iStg>1): no Miter re-calculation, only rhs update
 
@@ -134,7 +134,7 @@ MODULE Rosenbrock_Mod
       ELSE
         CALL SolveSparse( LU_Miter , rhs )
       END IF
-      CALL End_Timer(TimeSolve, timerStart)
+      CALL End_Timer(timerStart, TimeSolve)
 
       ! write to k(:,iStg)
       CALL Assign_Interstitial_State(k, rhs, iStg)
@@ -151,7 +151,7 @@ MODULE Rosenbrock_Mod
     DO iStg=1,ROS%nStage; YHat = YHat + ROS%me(iStg)*k(:,iStg); END DO
 
     CALL ERROR( err , ierr , YNew , YHat , ATolAll , RTolROW )
-    CALL End_Timer(TimeErrCalc, timerStart)
+    CALL End_Timer(timerStart, TimeErrCalc)
 
     maxErrorCounter(ierr(1,1)) = maxErrorCounter(ierr(1,1)) + 1
 
@@ -227,7 +227,7 @@ MODULE Rosenbrock_Mod
     END IF
 
     ! --- Update matrix procedure
-    CALL Start_Timer(TimeJacobianA)
+    CALL Start_Timer(TimerJacobian)
 
     ! d(dcdt)/dc
     IF (nDropletClasses>1) THEN
@@ -265,12 +265,12 @@ MODULE Rosenbrock_Mod
     END IF
     Out%npds = Out%npds + 1
 
-    CALL End_Timer(TimeJac, TimeJacobianA)
+    CALL End_Timer(TimerJacobian, TimeJac)
 
     ! finish by permuting for better LU decomposition
     CALL Start_Timer(timerStart)
     CALL SetLUvaluesCL( LU_Miter , Miter , LU_Perm_ValPtr )
-    CALL End_Timer(TimeSetValues, timerStart)
+    CALL End_Timer(timerStart, TimeSetValues)
 
     ! write data to files if needed
     CALL StreamWriteData(t, h, Rate, Y0)
@@ -291,11 +291,13 @@ MODULE Rosenbrock_Mod
     INTEGER :: jStg
 
     CALL Start_Timer(timerStart)
+    CALL Start_Timer(timerNumeric)
     IF (nDropletClasses>1) THEN
       dCdt = MULT_BAT_Rate_ValPtr(BAT , Rate) + Emiss
     ELSE
       dCdt = BAT * Rate + Emiss
     END IF
+    CALL End_Timer(timerNumeric, TimeNumeric)
 
     rhs(1:nspc2) = dCdt
     IF (combustion) THEN
@@ -336,7 +338,7 @@ MODULE Rosenbrock_Mod
     IF (PRESENT(dCdt_out)) dCdt_out = dCdt
     IF (PRESENT(dTdt_out)) dTdt_out = dTdt
 
-    CALL End_Timer(TimeRhsCalc, timerStart)
+    CALL End_Timer(timerStart, TimeRhsCalc)
   END SUBROUTINE Assemble_Rhs_Classic
 
   SUBROUTINE Calculate_Heat_Sources(U, dUdT, cv, T, MoleConc, dcvdT)
@@ -406,14 +408,14 @@ MODULE Rosenbrock_Mod
       CALL Start_Timer(timerStart)
       CALL StreamWriteFluxes(Rate,t,h)
       !WRITE(*,*) 'Captured fluxes at time ',t,'. StpFlux = ',StpFlux,' iStpFlux = ',iStpFlux
-      CALL End_Timer(TimeFluxWrite, timerStart)
+      CALL End_Timer(timerStart, TimeFluxWrite)
     END IF
 
     IF ( ConcDataPrint .AND. t - Tspan_tot(1) + (Tspan_tot(2)-Tspan_tot(1)) >= StpConc*REAL(iStpConc,dp) ) THEN
       CALL Start_Timer(timerStart)
       CALL StreamWriteConcentrations(Conc)
       !WRITE(*,*) 'Captured concentrations at time ',t,'. StpConc = ',StpConc,' iStpConc = ',iStpConc
-      CALL End_Timer(TimeConcWrite, timerStart)
+      CALL End_Timer(timerStart, TimeConcWrite)
     END IF
 
   END SUBROUTINE StreamWriteData
@@ -589,7 +591,6 @@ MODULE Rosenbrock_Mod
     ELSE
       CALL ReactionRates( t+tdel , Y , Rate)
     END IF
-    Out%nRateEvals = Out%nRateEvals + 1
 
     CALL UpdateEmission(Emiss,Y)
 

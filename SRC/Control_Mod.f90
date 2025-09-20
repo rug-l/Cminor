@@ -9,6 +9,7 @@
 !-------------------------------------------------------------
  MODULE Control_Mod
    USE Kind_Mod, ONLY: dp
+   USE iso_fortran_env
 !
 !-----------------------------------------------------------------
 !---  Scenario
@@ -18,8 +19,7 @@
       CHARACTER(80) :: LABEL        = ''      ! Identifier for scenario
 
 !--- system clock rate and max count
-      INTEGER  :: clock_rate_int, clock_maxcount_int
-      REAL(dp) :: clock_rate    , clock_maxcount
+      INTEGER(8)  :: clock_rate, clock_maxcount
 
 !--- Files
       CHARACTER(80) :: RunFile      = ''          & ! Simulation data file
@@ -131,11 +131,20 @@
       REAL(dp) :: minStp = 1.0d-25
       REAL(dp) :: maxStp = 100.0d0
 
-!-- initialize timers
-      REAL(dp) :: Timer_Start=0.0d0, Timer_Finish=0.d0
+!-- initialize timers and time variables
+      INTEGER(8) :: Timer_Start,   &
+                  & Timer_Finish,  &
+                  & TimerNetCDF,   &
+                  & TimerRates,    &
+                  & TimerJacobian, &
+                  & TimerSymbolic, &
+                  & Timer_Read,    &
+                  & TimerNumeric
+
       REAL(dp) :: Tspan(2)
       REAL(dp) :: Tspan_tot(2)
 
+      REAL(dp) :: Time_Finish=0.0d0
       REAL(dp) :: Time_Read=0.0d0
       REAL(dp) :: TimeRates=0.0d0
       REAL(dp) :: TimeSymbolic=0.0d0
@@ -150,11 +159,8 @@
       REAL(dp) :: TimeConcWrite=0.0d0
       REAL(dp) :: TimeConcRead=0.0d0
       REAL(dp) :: TimeSetValues=0.0d0
-  
       REAL(dp) :: TimeIntegration=0.0d0
-      REAL(dp) :: TimeRateA=0.0d0
-      REAL(dp) :: TimeJacobianA=0.0d0
-      REAL(dp) :: TimeNetCDFA=0.0d0
+      REAL(dp) :: TimeNumeric=0.0d0
 !
 
 !--- type for some statistics
@@ -299,34 +305,22 @@
     CONTAINS
 
       SUBROUTINE Start_Timer(StartTime)
-        REAL(dp) :: StartTime
-        INTEGER  :: StartTime_int
+        INTEGER(8) :: StartTime
 
         ! saves current time point
-        CALL SYSTEM_CLOCK(COUNT=StartTime_int)
-
-        StartTime = REAL(StartTime_int, dp)
+        CALL SYSTEM_CLOCK(COUNT=StartTime)
 
       END SUBROUTINE Start_Timer
 
-      SUBROUTINE End_Timer(MeasuredTime, StartTime)
+      SUBROUTINE End_Timer(StartTime, MeasuredTime)
         REAL(dp) :: MeasuredTime
-        REAL(dp), OPTIONAL :: StartTime
+        INTEGER(8) :: StartTime
 
-        REAL(dp) :: EndTime
-        INTEGER  :: EndTime_int
+        INTEGER(8)  :: EndTime
 
-        CALL SYSTEM_CLOCK(COUNT=EndTime_int)
-        EndTime = REAL(EndTime_int, dp)
+        CALL SYSTEM_CLOCK(COUNT=EndTime)
 
-        IF (PRESENT(StartTime)) THEN 
-          ! classic calculation, with an extra variable
-          ! the timer is then assumed to be accumulating, i.e., added several times onto itself
-          MeasuredTime = MeasuredTime + ( EndTime - StartTime ) / clock_rate
-        ELSE
-          ! one-variable calculation, MeasuredTime already has value of starting time and gets overwritten
-          MeasuredTime = ( EndTime - MeasuredTime ) / clock_rate
-        END IF
+        MeasuredTime = MeasuredTime + REAL(EndTime - StartTime, dp) / REAL(clock_rate, dp)
       END SUBROUTINE End_Timer
 
       SUBROUTINE ask_for_continuing()

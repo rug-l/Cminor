@@ -93,7 +93,7 @@ MODULE IO_Mod
   !
   SUBROUTINE Output_Statistics
     USE Control_Mod, ONLY: Time_Read, TimeRates, TimeSymbolic, TimeIntegration, TimeFac, &
-                         & TimeSolve, TimeJac, Timer_Finish, TimeNetCDF, TimeErrCalc,    &
+                         & TimeSolve, TimeJac, Time_Finish, TimeNetCDF, TimeErrCalc,    &
                          & TimeRhsCalc, TimeFluxWrite, TimeConcWrite, TimeSetValues,     &
                          & Out, ConcDataPrint, FluxDataPrint
     !
@@ -113,10 +113,10 @@ MODULE IO_Mod
     CALL ConvertTime(TimeJac,unit(10)(:))
     CALL ConvertTime(TimeErrCalc,unit(11)(:))
     CALL ConvertTime(TimeIntegration,unit(12)(:))
-    CALL ConvertTime(Timer_Finish,unit(13)(:))
+    CALL ConvertTime(Time_Finish,unit(13)(:))
     CALL ConvertTime(TimeSetValues,unit(14)(:))
     !
-    299 format(10X,A,3X,F6.3,A)
+    299 format(10X,A,3X,F9.5,A)
     298 format(10X,A,3X,I10)
     777 FORMAT(10X,A)
     WRITE(*,*);  WRITE(*,*);    WRITE(*,*)
@@ -144,8 +144,9 @@ MODULE IO_Mod
     WRITE(*,299) '          + Jacobian        =', TimeJac  ,unit(10)
     WRITE(*,299) '          + error calc      =', TimeErrCalc  ,unit(11)
     WRITE(*,777) '    ------------------------=----------------------'
+    WRITE(*,299) '    integration/step        =', TimeIntegration/(Out%nsteps+Out%nfailed),unit(12)
     WRITE(*,299) '    integration             =', TimeIntegration,unit(12); WRITE(*,*)
-    WRITE(*,299) '    total runtime           =', Timer_Finish,unit(13)
+    WRITE(*,299) '    total runtime           =', Time_Finish,unit(13)
     WRITE(*,*);  WRITE(*,*);  WRITE(*,*)
   END SUBROUTINE
   !

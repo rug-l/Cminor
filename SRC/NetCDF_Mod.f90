@@ -7,7 +7,7 @@
 MODULE NetCDF_Mod
 !--- Netcdf Output
   USE Kind_Mod,    ONLY: dp
-  USE Meteo_Mod,   ONLY: mol2part, Zenith, LWC_array
+  USE Meteo_Mod,   ONLY: mol2part, Zenith, LWC_array, get_wet_radii
   USE netcdf
   USE Reac_Mod,    ONLY: ns_GAS, Diag_Index, Diag_Name, Diag_LongName, DropletClasses,         &
                        & hasAquaSpc, hasPartiSpc, hasSolidSpc, hasPhotoReac, nDIM, nDIM2,      &
@@ -17,9 +17,9 @@ MODULE NetCDF_Mod
   USE Control_Mod, ONLY: LenName, iNCout_G, iNCout_A_l, iNCout_A_m3, iNCout_A_m3_Ptr,          &
                        & Pi, tBegin, tEnd, combustion, TWO, HOUR, nDropletClasses, NetCdfFile, &
                        & nNcdfAqua, nNcdfEmiss, rlat, rlon, iNcdfAqua, iNcdfAqua2, iNcdfEmiss, &
-                       & iNcdfGas, iNcdfGas2, Pi34, rTHREE, UnitGas, pressure, q_parcel,       &
-                       & nNcdfGas, nD_Ptr_spc, mega, RH, iNCout_A_l_Ptr, rho_parcel, z_parcel, &
-                       & adiabatic_parcel, T_parcel
+                       & iNcdfGas, iNcdfGas2, Pi34, rTHREE, UnitGas,       &
+                       & nNcdfGas, nD_Ptr_spc, mega, iNCout_A_l_Ptr, &
+                       & adiabatic_parcel
   !
   IMPLICIT NONE
 
@@ -37,6 +37,11 @@ MODULE NetCDF_Mod
     REAL(dp),     ALLOCATABLE :: DissolvedMass(:)  ! Mass of all dissolved species
     REAL(dp),     ALLOCATABLE :: DissolvedMolecules(:)  ! Sum of all dissolved molecules per droplet
     REAL(dp)                  :: Temperature   ! Temperature value at iTime
+    REAL(dp)                  :: rho_air       ! density of air at iTime
+    REAL(dp)                  :: q             ! water vapor mixing ratio at iTime
+    REAL(dp)                  :: pressure      ! pressure at iTime
+    REAL(dp)                  :: z             ! height at iTime
+    REAL(dp)                  :: RH            ! relative humidity at iTime
     REAL(dp)                  :: LWC           ! Liquid water content value at iTime
     REAL(dp)                  :: StepSize      ! Step size value at iTime
     REAL(dp)                  :: GasConc       ! Sum of all gaseous species at iTime
@@ -420,18 +425,18 @@ MODULE NetCDF_Mod
 END SUBROUTINE InitNetCDF
 !
 !
-SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp)
+SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp,rho_air,q,pressure,z,RH,nDroplets,LWCs)
   ! OUT:
   TYPE(NetCDF_T) :: NCDF
 
   REAL(dp), INTENT(IN) :: Conc(:)
-  REAL(dp), INTENT(IN) :: Time, StpSize, Temp
+  REAL(dp), INTENT(IN) :: Time, StpSize, Temp, rho_air, q, pressure, RH, z
+  REAL(dp), DIMENSION(nDropletClasses) :: LWCs, nDroplets
 
   !-- internal variable
   INTEGER :: j
   REAL(dp), PARAMETER    :: y_Min = 1.e-40_dp    
   REAL(dp), ALLOCATABLE :: tConc(:), tG(:), tA(:)
-  REAL(dp) :: LWCs(nDropletClasses)
 
   !==================================================================
   !===  Saving Output
@@ -454,15 +459,19 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp)
   IF ( combustion ) THEN
     tConc(1:nspc) = MoleConc_to_MoleFr(tConc(1:nspc))
     tG = [ tConc(iNcdfGas) ]     ! in mole fractions [-]
-    NCDF%Temperature = tConc(nDIM)
   ELSE
     tG = [ tConc(iNcdfGas2)   ] !  molec/cm3
     tA = [ tConc(iNcdfAqua2) / mol2part ]
-    IF ( adiabatic_parcel ) THEN
-      NCDF%Temperature = T_parcel
-    ELSE
-      NCDF%Temperature = Temp
-    END IF
+  END IF
+
+  NCDF%Temperature = Temp
+
+  IF (adiabatic_parcel) THEN
+    NCDF%rho_air     = rho_air
+    NCDF%q           = q
+    NCDF%pressure    = pressure
+    NCDF%z           = z
+    NCDF%RH          = RH
   END IF
 
   NCDF%Time        = Time
@@ -476,10 +485,10 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp)
   IF (hasGasSpc) NCDF%Spc_Conc(iNCout_G) = tG
 
   IF (hasAquaSpc) THEN
-    LWCs = LWC_array(Time)
     NCDF%LWC = SUM(LWCs)
 
-    NCDF%WetRadius = DropletClasses%wetRadius
+    NCDF%WetRadius = get_wet_radii(LWCs=LWCs, given_rho=rho_air)
+
     ! for mol/l unit, divide all species by dropletclass-specific LWC
     DO j = 1 , nDropletClasses
       NCDF%Spc_Conc(iNCout_A_l(iNCout_A_l_Ptr+j-1))  = tA(iNCout_A_l_Ptr+j-1)/LWCs(j)
@@ -487,9 +496,9 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp)
       NCDF%DissolvedMass(j)  = ( SUM(MolMass(iAs)*tConc(nD_Ptr_spc(iAs) +j-1) / mol2part)   &
                              &   - 1.0  * tConc(nD_Ptr_spc(Hp_ind) +j-1) / mol2part    &
                              &   - 17.0 * tConc(nD_Ptr_spc(OHm_ind)+j-1) / mol2part )  &
-                             &  / (DropletClasses%Number(j)*rho_parcel)
+                             &  / (nDroplets(j)*rho_air)
       NCDF%DissolvedMolecules(j) = (SUM(tConc(nD_Ptr_spc(iAs)+j-1)) - (tConc(nD_Ptr_spc(Hp_ind)+j-1)+tConc(nD_Ptr_spc(OHm_ind)+j-1))) &
-                               & * mega / (DropletClasses%Number(j)*rho_parcel)
+                               & * mega / (nDroplets(j)*rho_air)
     END DO
     NCDF%Spc_Conc(iNCout_A_m3) = tA
     IF (nDropletClasses>1) THEN
@@ -501,6 +510,8 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp)
 
   IF ( hasPhotoReac ) NCDF%Zenith = Zenith(Time)
 
+  ! this is, unfortunately, not linearly interpolated, since y_emi is updated
+  ! while integrating, and not before and after, which would be neccessary to interpolate
   IF (nNcdfEmiss>0) NCDF%Emiss_Conc = y_emi(iNcdfEmiss)
 
   CONTAINS
@@ -593,11 +604,11 @@ END SUBROUTINE SetOutputNCDF
   END IF
 
   IF ( adiabatic_parcel ) THEN
-    CALL check( NF90_PUT_VAR( ncid, rho_parcel_varid, rho_parcel, start = (/NCDF%iTime/) ) )
-    CALL check( NF90_PUT_VAR( ncid, q_parcel_varid  , q_parcel  , start = (/NCDF%iTime/) ) )
-    CALL check( NF90_PUT_VAR( ncid, pressure_varid  , pressure  , start = (/NCDF%iTime/) ) )
-    CALL check( NF90_PUT_VAR( ncid, z_parcel_varid  , z_parcel  , start = (/NCDF%iTime/) ) )
-    CALL check( NF90_PUT_VAR( ncid, RH_varid        , RH        , start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, rho_parcel_varid, NCDF%rho_air , start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, q_parcel_varid  , NCDF%q       , start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, pressure_varid  , NCDF%pressure, start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, z_parcel_varid  , NCDF%z       , start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, RH_varid        , NCDF%RH      , start = (/NCDF%iTime/) ) )
   END IF
 
   ! Write temperatue value
