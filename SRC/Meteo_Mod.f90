@@ -48,12 +48,14 @@ MODULE Meteo_Mod
   &                    , aH2O       = aH2OmolperL*mol2part
 
   ! passive species reference values are initialized in InitRoutines_Mod according to user specified values
-  REAL(dp)            :: RefM_dry & ! reference number of molecules per cm3 of dry air
-  &                    , RefM     & ! reference number of molecules per cm3 of moist air
-  &                    , RefH2O   & ! passive species H2O [molec/cm3] at reference pressure and temperature
-  &                    , RefN2    & ! passive species N2  [molec/cm3] at reference pressure and temperature
-  &                    , RefO2    & ! passive species O2  [molec/cm3] at reference pressure and temperature
-  &                    , RefH2      ! passive species H2  [molec/cm3] at reference pressure and temperature
+  REAL(dp)            :: RefM_dry  & ! reference number of molecules per cm3 of dry air
+  &                    , RefM      & ! reference number of molecules per cm3 of moist air
+  &                    , RefH2O    & ! passive species H2O [molec/cm3] at reference pressure and temperature
+  &                    , RefN2     & ! passive species N2  [molec/cm3] at reference pressure and temperature
+  &                    , RefO2     & ! passive species O2  [molec/cm3] at reference pressure and temperature
+  &                    , RefH2     & ! passive species H2  [molec/cm3] at reference pressure and temperature
+  &                    , alpha_H2O & ! accommodation coefficient for water condensation
+  &                    , beta_H2O    ! condensation coefficient for water condensation
 
 !     Universal gas constant [J / mol / K]
   REAL(dp), PARAMETER :: R         = SI_Gas

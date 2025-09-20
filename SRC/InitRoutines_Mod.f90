@@ -31,7 +31,7 @@ MODULE InitRoutines_Mod
 
       USE Meteo_Mod,   ONLY: R, molw_air, qsatw, H2O, RefRH, N2, O2, RefM_dry, RefO2,   &
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
-                           & mol2part, RefN2, SI_Gas
+                           & mol2part, RefN2, SI_Gas, alpha_H2O, beta_H2O
 
       INTEGER        :: io_stat
       CHARACTER(400) :: io_msg = ''
@@ -63,6 +63,8 @@ MODULE InitRoutines_Mod
       &                 rlon ,             &
       &                 dust ,             &
       &                 Temperature0 ,     &
+      &                 alpha_H2O,         &
+      &                 beta_H2O,          &
       &                 Pressure0
 
       NAMELIST /NUMERICS/  RtolROW ,      &
@@ -166,6 +168,8 @@ MODULE InitRoutines_Mod
       LwcLevelmin       = 2.0e-08_dp 
       LwcLevelmax       = 3.0e-04_dp 
       constLWC          = .FALSE. 
+      beta_H2O          = 1.0
+      alpha_H2O         = 0.0415
 
       idate  = 011027
       rlat   = 50.65_dp

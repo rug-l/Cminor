@@ -59,8 +59,9 @@
                               & calculate_all_S_eq, rho_H2O, Rv, thermal_conductivity,  &
                               & Cp, g, R_air, esatw, qsatw, Cv, RefH2O, RefN2, RefH2,   &
                               & aH2OmolperL, diff_coeff, molw_air, RefO2, SI_Gas,       &
-                              & eps_ionic_strength, dqsatwdT, get_wet_radii
-     
+                              & eps_ionic_strength, dqsatwdT, get_wet_radii, alpha_H2O, &
+                              & beta_H2O
+
     USE ChemKinInput_Mod, ONLY: lowA, lowB, lowC, lowD, lowE, lowF, lowG, highA, highB, &
                               & highC, highD, highE, highF, highG
     !
@@ -1174,7 +1175,7 @@
 
     REAL(dp), DIMENSION(nDropletClasses) :: m_w, dSeqdm
 
-    REAL(dp) :: F_k, F_d, e_s, r_alpha, r_beta, alpha_acc, beta_con
+    REAL(dp) :: F_k, F_d, e_s, r_alpha, r_beta
 
     REAL(dp), DIMENSION(nDropletClasses) :: G_pre, S_eq, r, n_s
     INTEGER :: i
@@ -1200,18 +1201,15 @@
     END IF
 
     ! relaxation radius Bohrer
-    alpha_acc = 1.0
-    beta_con  = 0.0415
-    !beta_con  = 1.0
-    r_alpha = thermal_conductivity(T_parcel) / (alpha_acc * Pressure) * SQRT(2*Pi*R_air*T_parcel) / (Cv+R_air/2)
-    r_beta  = SQRT(2*pi / Rv / T_parcel) * diff_coeff(T_parcel, pressure) / beta_con
+    r_alpha = SQRT(2*pi / Rv / T_parcel) * diff_coeff(T_parcel, pressure) / alpha_H2O
+    r_beta  = thermal_conductivity(T_parcel) / (beta_H2O * Pressure) * SQRT(2*Pi*R_air*T_parcel) / (Cv+R_air/2)
     ! factors for heat conduction and vapor diffusion
     F_k = L_v / ( thermal_conductivity(T_parcel) * T_parcel ) * &
     &     ( L_v / ( Rv * T_parcel ) - 1.0 )
 
     F_d = Rv * T_parcel / ( e_s * diff_coeff(T_parcel, pressure) )
 
-    G_pre = 1.0 / ( F_k*S_eq * (r+r_alpha) + F_d * (r+r_beta) )
+    G_pre = 1.0 / ( F_k*S_eq * (r+r_beta) + F_d * (r+r_alpha) )
 
     ! Köhler derivative term in mass form
     ! (kilo for unit g/s/kg, /kg comes from DropletClasses%Number, which is in #/kg)
