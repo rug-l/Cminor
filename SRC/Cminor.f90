@@ -242,7 +242,7 @@ PROGRAM Cminor
   ELSE ! atmospheric mechanism
 
     CALL ReadSystem( SysFile )
-    WRITE(*,*) 'done  ---->  Fix Temperature'
+    WRITE(*,*) 'done'
 
     !-----------------------------------------------------------------------
     ! --- print reactions and build A, B and (B-A) structure

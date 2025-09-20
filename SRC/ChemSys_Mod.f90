@@ -1069,7 +1069,7 @@ MODULE Chemsys_Mod
     !===  Read and save species names in lists
     !=========================================================================
     !
-    !-- Open .chem-file and skip the first 24 lines (head)
+    !-- Open .chem-file and skip the first 22 lines (head)
     OPEN(unit=ChemUnit, file=ChemFile, status='old', action='read', access='sequential', iostat=io_stat)
     IF ( io_stat /= 0 ) WRITE(*,*) '  ERROR opening chem-file :: ',io_stat
     REWIND(ChemUnit)
@@ -3440,7 +3440,7 @@ MODULE Chemsys_Mod
         WRITE(*,*) '      Radius at 100% RH: ', DropletClasses%saturated_air_radius(i), ' [m]'
         WRITE(*,*) '      Wet Radius:        ', DropletClasses%wetRadius(i), ' [m]'
         WRITE(*,*) '      Water Mass:        ', DropletClasses%waterMass(i), ' [g/kg]'
-        WRITE(*,*) '      Number:            ', DropletClasses%Number(i), ' [#/m^3]'
+        WRITE(*,*) '      Number:            ', DropletClasses%Number(i), ' [#/kg]'
         WRITE(*,*) ''
         WRITE(*,*) '      Concentrations in molec/cm^3:'
         DO j = 1 , ns_AQUA

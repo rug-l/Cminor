@@ -202,15 +202,17 @@ MODULE InitRoutines_Mod
       T_parcel = Temperature0
       Pressure = Pressure0
       !
-      ! calculate density of air in parcel according to ideal gas law
-      rho_parcel  = milli * Pressure0 * molw_air / R / Temperature0 ! kg/m3
-      rho_parcel0 = rho_parcel
-      ! calculate mass of parcel in kg
-      m_parcel    = rho_parcel * V_parcel0
-      !
       ! initial mixing ratio of parcel
       RH = RH0
       q_parcel = RH * qsatw(T_parcel, Pressure0)
+      !
+      ! calculate density of air in parcel according to ideal gas law
+      rho_parcel  = milli * Pressure0 * molw_air / R / Temperature0 ! kg/m3
+      ! moist air
+      !rho_parcel  = milli * Pressure0 * molw_air / R / (Temperature0*(1+0.61*q_parcel)) ! kg/m3
+      rho_parcel0 = rho_parcel
+      ! calculate mass of parcel in kg
+      m_parcel    = rho_parcel * V_parcel0
 
       H2O      = mol2part * RH*esatw(Temperature0)  / SI_Gas / Temperature0   ! passive species H2O [molec/cm3]
 

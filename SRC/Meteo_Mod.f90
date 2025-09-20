@@ -15,8 +15,8 @@ MODULE Meteo_Mod
 
   IMPLICIT NONE
 
-  REAL(dp), PARAMETER :: Cp   = 1004.0D0 ! heat capacity of air at constant pressure J/kg/K
-  REAL(dp), PARAMETER :: Cp_vapor = 1897.0D0 ! heat capacity of water vapor at constant pressure J/kg/K
+  REAL(dp), PARAMETER :: Cp   = 1005.0D0 ! heat capacity of air at constant pressure J/kg/K
+  REAL(dp), PARAMETER :: Cp_vapor = 1860.0D0 ! heat capacity of water vapor at constant pressure J/kg/K
   REAL(dp), PARAMETER :: Cv   = 717.0D0
   REAL(dp), PARAMETER :: Rd   = Cp-Cv
   REAL(dp), PARAMETER :: g    = 9.81 ! gravitational acceleration m/s2
@@ -36,7 +36,6 @@ MODULE Meteo_Mod
   &                    , rho_H2O    = 1000000               & ! density of water in g/m3
   &                    , molw_H2O   = 18.015                & ! molecular weight of water in g/mol
   &                    , molw_air   = 28.9652d0             & ! molar mass of dry air in g/mol
-  &                    , h2o_push   = 6.023d20/molw_h2o     &
   &                    , Rv         = 461.5                 & ! gas constant for water in J/kg/K
   &                    , R_air      = 287.1                 & ! gas constant for dry air in J/kg/K
   &                    , RefPressure= 101325.0              & ! reference atmospheric pressure [Pa]
@@ -321,21 +320,27 @@ CONTAINS
   END FUNCTION
 
   ! turn total lwc into an array of lwcs for each droplet class
-  FUNCTION LWC_array(RealTime, waterMasses) RESULT(LWCs)
+  FUNCTION LWC_array(RealTime, waterMasses, given_rho) RESULT(LWCs)
     USE Reac_Mod,    ONLY: DropletClasses
     USE Control_Mod, ONLY: nDropletClasses
 
     REAL(dp) :: RealTime, LWCs(nDropletClasses)
-    REAL(dp), OPTIONAL :: waterMasses(nDropletClasses)
+    REAL(dp), OPTIONAL :: waterMasses(nDropletClasses), given_rho
 
-    REAL(dp) :: LWC_total
+    REAL(dp) :: LWC_total, rho_air
+
+    IF (PRESENT(given_rho)) THEN
+      rho_air = given_rho
+    ELSE
+      rho_air = rho_parcel
+    END IF
 
     IF (adiabatic_parcel) THEN ! copy class specific water mass
       ! * rho_parcel to convert water masses from kg/kg to l/m3
       IF (PRESENT(waterMasses)) THEN
-        LWCs = waterMasses * milli * rho_parcel
+        LWCs = waterMasses * milli * rho_air
       ELSE 
-        LWCs = DropletClasses%waterMass * milli * rho_parcel
+        LWCs = DropletClasses%waterMass * milli * rho_air
       END IF
     ELSE ! get water masses by pre-defined LWC function
       LWC_total = pseudoLWC(RealTime)
@@ -383,6 +388,17 @@ CONTAINS
     HpConc = - IonCharge/2 + SQRT((IonCharge/2)**2 + 1E-14_dp * LWC**2 * mol2part**2)
 
   END FUNCTION HpValue_from_Electroneutrality
+
+  FUNCTION dpdz(z) RESULT(dpressuredz)
+    ! IN:
+    REAL(dp) :: z ! height
+    ! OUT:
+    REAL(dp) :: dpressuredz 
+
+    ! derivative of barometric height formula
+    dpressuredz = - Pressure0 * g / R_air / Temperature0 * EXP(-g*z / ( R_air * Temperature0 ))
+
+  END FUNCTION dpdz
 
   FUNCTION pressure_from_height(z) RESULT(pressure)
     ! IN:
@@ -673,17 +689,24 @@ CONTAINS
 
     END FUNCTION diff_coeff
 
-    FUNCTION get_wet_radii(waterMass, LWCs) RESULT(radii)
+    FUNCTION get_wet_radii(waterMass, LWCs, given_rho) RESULT(radii)
       USE Reac_Mod,    ONLY: DropletClasses
 
       REAL(dp), OPTIONAL :: waterMass(nDropletClasses), LWCs(nDropletClasses)
+      REAL(dp), OPTIONAL :: given_rho
 
-      REAL(dp) :: radii(nDropletClasses)
+      REAL(dp) :: radii(nDropletClasses), rho_air
+
+      IF (PRESENT(given_rho)) THEN
+        rho_air = given_rho
+      ELSE
+        rho_air = rho_parcel
+      END IF
 
       IF ( PRESENT(LWCs) ) THEN
         ! LWCs is l/m3
         !            ->g/m3      ->g/kg     ->m3/kg ->m3                    ->m
-        radii = (Pi34*kilo*LWCs/(rho_parcel*rho_H2O*DropletClasses%Number))**(rTHREE)
+        radii = (Pi34*kilo*LWCs/(rho_air*rho_H2O*DropletClasses%Number))**(rTHREE)
       ELSE IF ( PRESENT(waterMass) ) THEN
         ! waterMass is g/kg
         !                       ->m3/kg ->m3                    ->m
@@ -695,5 +718,14 @@ CONTAINS
       END IF
 
     END FUNCTION get_wet_radii
+
+    FUNCTION Cp_moist(q) RESULT(Cp_m)
+      REAL(dp) :: q
+
+      REAL(dp) :: Cp_m
+
+      Cp_m = Cp/(1+q) + Cp_vapor*q/(1+q)
+
+    END FUNCTION Cp_moist
 
 END MODULE Meteo_Mod

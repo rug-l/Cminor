@@ -60,7 +60,7 @@
                               & Cp, g, R_air, esatw, qsatw, Cv, RefH2O, RefN2, RefH2,   &
                               & aH2OmolperL, diff_coeff, molw_air, RefO2, SI_Gas,       &
                               & eps_ionic_strength, dqsatwdT, get_wet_radii, alpha_H2O, &
-                              & beta_H2O
+                              & beta_H2O, dpdz
 
     USE ChemKinInput_Mod, ONLY: lowA, lowB, lowC, lowD, lowE, lowF, lowG, highA, highB, &
                               & highC, highD, highE, highF, highG
@@ -1136,21 +1136,34 @@
 
 
   ! calculates change of density due to ideal gas law and instantaneous adjustment to ambient pressure
-  FUNCTION rhs_rho(rho, T, dzdt, p, dTdt) RESULT(drhodt)
-    REAL(dp) :: rho, T, dzdt, p, dTdt
+  !FUNCTION rhs_rho(rho, T, dzdt, p, dTdt, dqdt, q, z) RESULT(drhodt)
+  !  REAL(dp) :: rho, T, dzdt, p, dTdt, dqdt, q, z
+  FUNCTION rhs_rho(T, dzdt, p, dTdt, z) RESULT(drhodt)
+    REAL(dp) :: T, dzdt, p, dTdt, z
 
-    REAL(dp) :: drhodt
+    REAL(dp) :: drhodt !, Tv_fac
 
-    drhodt = - rho * g * dzdt / R_air / T - dTdt * p / R_air / T**2
+    !Tv_fac = 1+0.61*q
+
+    ! moist air
+    !drhodt = dpdz(z) * dzdt / R_air / (T*Tv_fac) &
+    !       & - dTdt * p / R_air / (T**2 * Tv_fac) - 0.61 * p / (R_air*T*Tv_fac**2) * dqdt
+    ! dry air
+    !drhodt = - rho * g * dzdt / R_air / T - dTdt * p / R_air / T**2
+    drhodt = dpdz(z) * dzdt / R_air / T - dTdt * p / R_air / T**2
     !drhodt = ZERO
 
   END FUNCTION rhs_rho
 
   ! calculates rate of temperature change due to adiabatically rising parcel (updraft velocity w) and condensation dmdt
+  !FUNCTION rhs_T_cond_and_parcel(dmdt, dzdt, q) RESULT (dTdt)
+  !  REAL(dp) :: dmdt(nDropletClasses), dzdt, q
   FUNCTION rhs_T_cond_and_parcel(dmdt, dzdt) RESULT (dTdt)
     REAL(dp) :: dmdt(nDropletClasses), dzdt
 
-    REAL(dp) :: dTdt
+    REAL(dp) :: dTdt !, Cp_m
+
+    !Cp_m = Cp_moist(q)
 
     dTdt = - g * dzdt / Cp + L_v * milli * SUM(dmdt) / Cp
 

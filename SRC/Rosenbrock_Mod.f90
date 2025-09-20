@@ -234,6 +234,10 @@ MODULE Rosenbrock_Mod
       CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h)
     END IF
 
+    IF ( combustion ) THEN
+      CALL Calculate_Heat_Sources(U, dUdT, cv, Y0(nDIM2), Y0(1:nspc2), dcvdT=dcvdT)
+    END IF
+
     ! --- Update matrix procedure
     CALL Start_Timer(TimerJacobian)
 
@@ -246,7 +250,6 @@ MODULE Rosenbrock_Mod
 
     IF ( combustion ) THEN
     !
-      CALL Calculate_Heat_Sources(U, dUdT, cv, Y0(nDIM2), Y0(1:nspc2), dcvdT=dcvdT)
       CALL Jacobian_CT( Jac_CT , BAT , Rate , dkdT_over_k )
       CALL Jacobian_TC( Jac_TC , Jac_CC , cv , dUdT , dTdt , U , rRho)
       CALL Jacobian_TT( Jac_TT , Jac_CT , cv , dcvdT , dTdt , dUdT , dCdt , U , rRho)
@@ -316,7 +319,7 @@ MODULE Rosenbrock_Mod
 
     IF (adiabatic_parcel) THEN
 
-      pressure = pressure_from_height(Y(izEq2))           ! pressure of parcel instantaneously adjusts to ambient conditions
+      pressure = pressure_from_height(Y(izEq2)) ! pressure of parcel instantaneously adjusts to ambient conditions
       RH       = Y(iqEq2) / qsatw(Y(iTeq2), pressure)
       dzdt     = rhs_z()
       IF ( PRESENT(dSeqdmw_out) ) THEN ! calculate and output dSeqdm (for Jacobian in first step of every time step)
@@ -325,8 +328,8 @@ MODULE Rosenbrock_Mod
         CALL rhs_condensation(dmdt, DropletClasses, Y, RH)
       END IF
       dTdt     = rhs_T_cond_and_parcel(dmdt, dzdt)
-      drhodt   = rhs_rho(Y(iRhoEq2), Y(iTeq2), dzdt, pressure, dTdt)
       dqdt     = rhs_q_parcel(dmdt)
+      drhodt   = rhs_rho(Y(iTeq2), dzdt, pressure, dTdt, Y(izEq2))
 
       rhs(1:nspc2)    = rhs(1:nspc2) + Y(1:nspc2)*drhodt/Y(iRhoEq2)
       rhs(iAqMassEq2) = dmdt
@@ -375,8 +378,8 @@ MODULE Rosenbrock_Mod
     REAL(dp), DIMENSION(nDIM2) :: ynew, yhat, ATol
     REAL(dp) :: RTol
     !
-    REAL(dp) :: scalTol(nDIM2), e_n(nDIM2), ymax(nDIM2)
     INTEGER :: ierr(1,1)
+    REAL(dp) :: scalTol(nDIM2), e_n(nDIM2), ymax(nDIM2)
     !
     ymax      = MAX(ABS(yhat),ABS(ynew))
     scalTol   = ONE / ( ATol + ymax*RTol )  ! scaling strategy
