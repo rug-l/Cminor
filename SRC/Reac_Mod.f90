@@ -231,7 +231,7 @@
     INTEGER :: nr_HENRYga = 0, nr_HENRYag  = 0
     INTEGER :: nr_FACTOR = 0, nr_FAC_H2  = 0, nr_FAC_O2N2 = 0, nr_FAC_M  = 0, nr_FAC_O2 = 0, nr_FAC_N2 = 0
     INTEGER :: nr_FAC_H2O = 0, nr_FAC_RO2 = 0, nr_FAC_O2O2 = 0, nr_FAC_aH2O = 0, nr_FAC_RO2aq = 0
-    INTEGER :: nr_HOaqua = 0      ! higher order aqueous reactions
+    INTEGER :: nr_HOaqua = 0, nr_SOaqua = 0, nr_TOaqua = 0      ! higher order aqueous reactions
     INTEGER :: nr_PHOTOkpp = 0, nr_PHOTO2kpp = 0, nr_PHOTO3kpp = 0
     INTEGER :: nr_HOM1 = 0
 
@@ -342,7 +342,10 @@
       &                     , iHENRY(:,:) , iHOM1(:) &
       &                     , iFAC_H2(:),  iFAC_O2N2(:), iFAC_M(:),    iFAC_O2(:),   iFAC_N2(:) &
       &                     , iFAC_H2O(:), iFAC_RO2(:),  iFAC_O2O2(:), iFAC_aH2O(:), iFAC_RO2aq(:) &
+      &                     , HOaqua(:)      &
       &                     , iHOaqua(:) &
+      &                     , iSOaqua(:) &
+      &                     , iTOaqua(:) &
       &                     , iPHOTOkpp(:), iPHOTO2kpp(:), iPHOTO3kpp(:) &
       &                     , iPHOTOStWe(:) &
       &                     , iSPECIAL(:)
@@ -373,7 +376,6 @@
       &                     ,  DTEMP2(:,:), DTEMP3(:,:), DTEMP4(:,:) &
       &                     ,  DCONST(:,:)    &
       &                     ,  HENRY(:,:)     &
-      &                     ,  HOaqua(:)      &
       &                     ,  PHOTOkpp(:), PHOTO2kpp(:), PHOTO3kpp(:) &
       &                     ,  PHOTOStWe(:)   &
       &                     ,  HOM1(:,:)

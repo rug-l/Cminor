@@ -37,7 +37,7 @@
                               & dDelGFEdT, henry_diff, gaseous_passive_ind, iFO_Kat,    &
                               & henry_accom, InitValKAT_Ref, InitValKAT, aH2O_ind,      &
                               & iAqMassEq2, nr_FAC_aH2O, iCutOffReacs, OHm_ind,         &
-                              & DropletClasses_T 
+                              & DropletClasses_T, nr_HOaqua, nr_SOaqua, nr_TOaqua
      
     USE Control_Mod,      ONLY: nD_Ptr_spc, adiabatic_parcel, rho_parcel, m_parcel, Pi, &
                               & nD_Ptr_reacs, nD_Ptr_KAT, nD_reac, ZERO, TimeRates,     &
@@ -269,7 +269,10 @@
       REAL(dp) :: chi(3), LWCs(nDropletClasses)
       REAL(dp) :: T(10), Temp
       REAL(dp) :: Meff(nreac2), k(nreac2) , Prod(nreac2)
-      REAL(dp) :: mAir, passive_conversion
+      REAL(dp) :: mAir, passive_conversion,                &
+                &   aqua_unit_conversion(nDropletClasses), &
+                & SOaqua_unit_conversion(nDropletClasses), &
+                & TOaqua_unit_conversion(nDropletClasses)
 
       REAL(dp) :: tHenry(nr_HENRY,2,nDropletClasses)
       INTEGER  :: j,j_nD,i
@@ -359,22 +362,48 @@
       IF ( ns_AQUA > 0 ) THEN
 
         InitValKat(nD_Ptr_KAT(aH2O_ind):nD_Ptr_KAT(aH2O_ind+1)-1) = aH2O*LWCs
+        
+        IF (nr_SOaqua>0 .OR. nr_TOaqua>0 .OR. nr_HOaqua>0) aqua_unit_conversion   = 1/(LWCs*mol2part)
+        IF (nr_SOaqua>0)                                   SOaqua_unit_conversion = aqua_unit_conversion
+        IF (nr_TOaqua>0)                                   TOaqua_unit_conversion = aqua_unit_conversion*aqua_unit_conversion
 
-        DO i = 1 , nDropletClasses
-          ! iR%HOaqua is the order of the reaction minus one, which results in dividing all educts (which are like LWC*c_aq*mol2part
-          ! with c_aq in mol/l) by LWC*mol2part except one, this results in having left one c_aq*mol2part at the rhs,
-          ! i.e. also at the lhs, leaving us with the derivative of not c_aq but c_aq*LWC*mol2part, which is what we want,
-          ! since we store this, not c_aq.
-          ! meanwhile, by dividing the rhs we respect the units of the reaction constants which want mol/l concentrations
-          k(nD_Ptr_reacs(iR%iHOaqua)+i-1) = k(nD_Ptr_reacs(iR%iHOaqua)+i-1) / (LWCs(i)*mol2part)**iR%HOaqua
-
-          ! cut off reactions if summed up solute conc (ionic strength) exceeds threshold
-          !IF ( (SUM(Conc(nD_Ptr_Spc(iAs)+i-1)) - Conc(nD_Ptr_spc(Hp_ind)+i-1) - Conc(nD_Ptr_spc(OHm_ind)+i-1))/mol2part/LWCs(i) > eps_ionic_strength ) THEN
-          !  k(nD_Ptr_Reacs(iCutOffReacs)+i-1) = ZERO
-          !  WRITE(*,*) 'WARNING :: cutting off reactions in haze droplets can cause numeric fatality!'
-          !END IF
-
+        ! iR%HOaqua is the order of the reaction minus one, which results in dividing all educts (which are like LWC*c_aq*mol2part
+        ! with c_aq in mol/l) by LWC*mol2part except one, this results in having left one c_aq*mol2part at the rhs,
+        ! i.e. also at the lhs, leaving us with the derivative of not c_aq but c_aq*LWC*mol2part, which is what we want,
+        ! since we store this, not c_aq.
+        ! meanwhile, by dividing the rhs we respect the units of the reaction constants which want mol/l concentrations
+        ! NOTE: 
+        ! this can be done in two ways, ordered by droplet classes (Version 1) or by reactions (Version 2)
+        ! for sulfur oxidation, Version 2 is about 20 times faster
+        !
+        ! Version 1:
+        !DO i = 1 , nDropletClasses
+        !  !k(nD_Ptr_reacs(iR%iHOaqua)+i-1) = k(nD_Ptr_reacs(iR%iHOaqua)+i-1) / (LWCs(i)*mol2part)**iR%HOaqua
+        ! IF (nr_SOaqua>0) k(nD_Ptr_reacs(iR%iSOaqua)+i-1) = k(nD_Ptr_reacs(iR%iSOaqua)+i-1) * SOaqua_unit_conversion(i)
+        ! IF (nr_TOaqua>0) k(nD_Ptr_reacs(iR%iTOaqua)+i-1) = k(nD_Ptr_reacs(iR%iTOaqua)+i-1) * TOaqua_unit_conversion(i)
+        ! IF (nr_HOaqua>0) k(nD_Ptr_reacs(iR%iHOaqua)+i-1) = k(nD_Ptr_reacs(iR%iHOaqua)+i-1) *   aqua_unit_conversion(i)**iR%HOaqua
+        !
+        !  ! cut off reactions if summed up solute conc (ionic strength) exceeds threshold
+        !  !IF ( (SUM(Conc(nD_Ptr_Spc(iAs)+i-1)) - Conc(nD_Ptr_spc(Hp_ind)+i-1) - Conc(nD_Ptr_spc(OHm_ind)+i-1))/mol2part/LWCs(i) > eps_ionic_strength ) THEN
+        !  !  k(nD_Ptr_Reacs(iCutOffReacs)+i-1) = ZERO
+        !  !  WRITE(*,*) 'WARNING :: cutting off reactions in haze droplets can cause numeric fatality!'
+        !  !END IF
+        !
+        !END DO
+        ! Version 1 end
+        !
+        ! Version 2:
+        DO i=1, nr_SOaqua
+          k(nD_Ptr_reacs(iR%iSOaqua(i)):nD_Ptr_reacs(iR%iSOaqua(i)+1)-1) = k(nD_Ptr_reacs(iR%iSOaqua(i)):nD_Ptr_reacs(iR%iSOaqua(i)+1)-1) * SOaqua_unit_conversion
         END DO
+        DO i=1, nr_TOaqua
+          k(nD_Ptr_reacs(iR%iTOaqua(i)):nD_Ptr_reacs(iR%iTOaqua(i)+1)-1) = k(nD_Ptr_reacs(iR%iTOaqua(i)):nD_Ptr_reacs(iR%iTOaqua(i)+1)-1) * TOaqua_unit_conversion
+        END DO
+        DO i=1, nr_HOaqua
+          k(nD_Ptr_reacs(iR%iHOaqua(i)):nD_Ptr_reacs(iR%iHOaqua(i)+1)-1) = k(nD_Ptr_reacs(iR%iHOaqua(i)):nD_Ptr_reacs(iR%iHOaqua(i)+1)-1) *   aqua_unit_conversion**iR%HOaqua(i)
+        END DO
+        ! Version 2 end
+
 
         ! set everything to zero in inactive droplet classes
         IF (.NOT. adiabatic_parcel) THEN

@@ -2583,7 +2583,14 @@ MODULE Chemsys_Mod
         ! ----------
 
         IF ( ReacStruct(i)%Type=='AQUA'.OR. ReacStruct(i)%Type=='DISS' ) THEN
-          IF ( ReacStruct(i)%SumAqCoef /= ONE ) nr_HOaqua = nr_HOaqua + 1
+          !IF ( ReacStruct(i)%SumAqCoef /= ONE ) nr_HOaqua = nr_HOaqua + 1
+          IF ( ReacStruct(i)%SumAqCoef == TWO   ) THEN
+            nr_SOaqua = nr_SOaqua + 1
+          ELSE IF ( ReacStruct(i)%SumAqCoef == THREE ) THEN
+            nr_TOaqua = nr_TOaqua + 1
+          ELSE IF ( ReacStruct(i)%SumAqCoef /= ONE   ) THEN
+            nr_HOaqua = nr_HOaqua + 1
+          END IF
         END IF
         !
         ! for equilibrium reactions save <-- direction
@@ -2654,7 +2661,14 @@ MODULE Chemsys_Mod
             ReacStruct(i)%SumAqCoef = SUM(Current%Product%Koeff)
 
             IF ( ReacStruct(i)%Type=='AQUA'.OR. ReacStruct(i)%Type=='DISS' ) THEN
-              IF ( ReacStruct(i)%SumAqCoef /= ONE ) nr_HOaqua = nr_HOaqua + 1
+              !IF ( ReacStruct(i)%SumAqCoef /= ONE ) nr_HOaqua = nr_HOaqua + 1
+              IF ( ReacStruct(i)%SumAqCoef == TWO   ) THEN
+                nr_SOaqua = nr_SOaqua + 1
+              ELSE IF ( ReacStruct(i)%SumAqCoef == THREE ) THEN
+                nr_TOaqua = nr_TOaqua + 1
+              ELSE IF ( ReacStruct(i)%SumAqCoef /= ONE   ) THEN
+                nr_HOaqua = nr_HOaqua + 1
+              END IF
             END IF
             !
         END SELECT
@@ -2671,7 +2685,12 @@ MODULE Chemsys_Mod
     ! counting the aquatic reactions with more than one educt and
     ! specifying reactions to be cut off eventually, but this isn't currently done
     ! for numerical life-keeping reasons
-    ALLOCATE( iR%iHOaqua(nr_HOaqua), iR%HOaqua(nr_HOaqua), iCutOffReacs(0) )
+    !ALLOCATE( iR%iHOaqua(nr_HOaqua), iR%HOaqua(nr_HOaqua), iCutOffReacs(0) )
+    ALLOCATE( iR%iHOaqua(nr_HOaqua), iR%HOaqua(nr_HOaqua),  &
+            & iR%iSOaqua(nr_SOaqua), iR%iTOaqua(nr_TOaqua), &
+            & iCutOffReacs(0)                               )
+    nr_SOaqua = 0
+    nr_TOaqua = 0
     nr_HOaqua = 0
 
     DO i=1,nreac
@@ -2683,12 +2702,31 @@ MODULE Chemsys_Mod
       END IF
 
       IF ( ReacStruct(i)%Type=='AQUA'.OR. ReacStruct(i)%Type=='DISS' ) THEN
-        IF ( ReacStruct(i)%SumAqCoef /= ONE ) THEN
+        !IF ( ReacStruct(i)%SumAqCoef /= ONE ) THEN
+        !  nr_HOaqua = nr_HOaqua + 1
+        !  iR%iHOaqua(nr_HOaqua) = i
+        !  ! iR%HOaqua saves the exponent for unit correction of the rate constant in Rates_Mod
+        !  ! this has to be one less than the sum of educt coefficients, see the comment in Rates_Mod
+        !  iR%HOaqua(nr_HOaqua) = ReacStruct(i)%SumAqCoef - ONE
+        !END IF
+        IF ( ReacStruct(i)%SumAqCoef == TWO ) THEN
+          nr_SOaqua = nr_SOaqua + 1
+          iR%iSOaqua(nr_SOaqua) = i
+        ELSE IF ( ReacStruct(i)%SumAqCoef == THREE ) THEN
+          nr_TOaqua = nr_TOaqua + 1
+          iR%iTOaqua(nr_TOaqua) = i
+        ELSE IF ( ReacStruct(i)%SumAqCoef /= ONE ) THEN
           nr_HOaqua = nr_HOaqua + 1
           iR%iHOaqua(nr_HOaqua) = i
           ! iR%HOaqua saves the exponent for unit correction of the rate constant in Rates_Mod
           ! this has to be one less than the sum of educt coefficients, see the comment in Rates_Mod
-          iR%HOaqua(nr_HOaqua) = ReacStruct(i)%SumAqCoef - ONE
+          IF (ABS(INT(ReacStruct(i)%SumAqCoef - ONE) - (ReacStruct(i)%SumAqCoef - ONE)) > 1.0e-12_dp) THEN
+            WRITE(*,*) 'Broken order stoichiometric coefficients for educts are suppressed right now,&
+                      & because integer exponentiation is faster. To enable, turn iR%HOaqua into REAL.'
+            STOP
+          END IF
+          !iR%HOaqua(nr_HOaqua) = ReacStruct(i)%SumAqCoef - ONE
+          iR%HOaqua(nr_HOaqua) = NINT(ReacStruct(i)%SumAqCoef - ONE)
         END IF
       END IF
 
