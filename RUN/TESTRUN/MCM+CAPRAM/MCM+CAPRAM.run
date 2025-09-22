@@ -10,7 +10,7 @@
 /END
 &TIMES
   tBegin      = 0.0d0
-  tEnd        = 84600.0d0
+  tEnd        = 86400.0d0
 /END
 &METEO
   pHSet       = .T.
@@ -23,12 +23,12 @@
   Temperature0= 280.0d0
 /END
 &NUMERICS
-  RtolROW  = 1.0d-3
+  RtolROW  = 1.0d-4
   AtolGas  = 1.0d-5
   AtolAqua = 1.0d-5
   Error_Est = 2
   minStp  = 1.0d-30
-  maxStp  = 300.0d0
+  maxStp  = -1.0d0
   ODEsolver = 'METHODS/Rodas3.ros'
 /END
 &OUTPUT

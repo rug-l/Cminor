@@ -22,7 +22,7 @@ RUN_Files = np.array([ \
                      , "RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003_parcel.run"          \
                      , "RUN/TESTRUN/RACM+CAPRAM/RACM+C24.run"                                   \
                      , "RUN/TESTRUN/MCM+CAPRAM/MCM+CAPRAM.run"                                  \
-                     , "RUN/TESTRUN/ERC_nHeptane/ERC_nheptane.run"                              \
+                     , "RUN/TESTRUN/ERC_nHeptane/ERC_nHeptane.run"                              \
                      , "RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane.run"                            \
                      , "RUN/TESTRUN/LLNL_MD/LLNL_MD.run"                                        \
                      ])
@@ -36,7 +36,7 @@ reference = np.array([ \
                      , "RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003_parcel_reference.nc" \
                      , "RUN/TESTRUN/RACM+CAPRAM/RACM+C24_reference.nc"                          \
                      , "RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_reference.nc"                       \
-                     , "RUN/TESTRUN/ERC_nHeptane/ERC_nheptane_reference.nc"                     \
+                     , "RUN/TESTRUN/ERC_nHeptane/ERC_nHeptane_reference.nc"                     \
                      , "RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_reference.nc"                   \
                      , "RUN/TESTRUN/LLNL_MD/LLNL_MD_reference.nc"                               \
                      ])
@@ -49,7 +49,7 @@ test_ncdf = np.array([ \
                      , "RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003_parcel_test.nc"      \
                      , "RUN/TESTRUN/RACM+CAPRAM/RACM+C24_test.nc"                               \
                      , "RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_test.nc"                            \
-                     , "RUN/TESTRUN/ERC_nHeptane/ERC_nheptane_test.nc"                          \
+                     , "RUN/TESTRUN/ERC_nHeptane/ERC_nHeptane_test.nc"                          \
                      , "RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_test.nc"                        \
                      , "RUN/TESTRUN/LLNL_MD/LLNL_MD_test.nc"                                    \
                      ])

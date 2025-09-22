@@ -2,8 +2,8 @@ COMMENT  CAPRAM 3.0m + RACM-MIM2ext + halogen module 2.0
 COMMENT  last update 05-05-2011 (pb)
 COMMENT   ===================   Unit options   ======================
 
-UNIT GAS    1   COMMENT     Gas phase units     (0 = molec/cm3, 1 = mol/m3)
-UNIT AQUA   0   COMMENT     Aqueous phase units (0 = mol/l)
+UNIT GAS    0  
+UNIT AQUA   0 
 
 COMMENT   ===========================================================
 

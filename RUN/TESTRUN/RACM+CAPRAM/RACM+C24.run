@@ -23,17 +23,16 @@
   Temperature0= 280.0d0
 /END
 &NUMERICS
-  RtolROW     = 1.0d-3
+  RtolROW     = 1.0d-4
   AtolGas     = 1.0d-5
   AtolAqua    = 1.0d-5
   Error_Est   = 2
   minStp      = 1.0d-30
-  maxStp      = 50.0d0
+  maxStp      = -1.0d0
   ODEsolver   = 'METHODS/Rodas3.ros'
 /END
 &OUTPUT
   NetCdfFile  = 'RUN/TESTRUN/RACM+CAPRAM/RACM+C24_test.nc'
-  StpNetCDF   = 300.0d0
-  StpFlux     = 300.0d0
+  StpNetCDF   = 600.0d0
   MatrixPrint = .F.
 /END

@@ -20,10 +20,10 @@
 &NUMERICS
   RtolROW   = 1.0d-4
   AtolGas   = 1.0d-15
-  AtolTemp  = 1.0d-1
+  AtolTemp  = 1.0d-2
   Error_Est = 2
   minStp    = 1.0d-45
-  maxStp    = 2.0d-4
+  maxStp    = -1.0
   ODEsolver = 'METHODS/TSRosWRA34PW2.ros'
 /END
 &OUTPUT

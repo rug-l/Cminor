@@ -20,19 +20,21 @@
   Pressure0   = 95000.0d0
   updraft_velocity = 0.5d0
   nDropletClasses = 50
+  alpha_H2O = 1.0
 /END
 &NUMERICS
-  RtolROW  = 5.0d-5
-  AtolGas  = 1.0d-8
-  AtolAqua = 1.0d-8
+  RtolROW  = 1.0d-4
+  AtolGas  = 1.0d-5
+  AtolAqua = 1.0d-5
   Error_Est = 2
   minStp  = 1.0d-30
-  maxStp  = 100.0d0
+  maxStp  = -1.0
   ODEsolver = 'METHODS/Rodas3.ros'
 /END
 &OUTPUT
   NetCdfFile  = 'RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003_parcel_test.nc'
   StpNetCDF   = 10.0d0
   StpFlux     = 300.0d0
+  DropletClassPrint = .T.
   MatrixPrint = .F.
 /END

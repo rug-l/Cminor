@@ -23,11 +23,11 @@
   AtolTemp  = 1.0d-2
   Error_Est = 2
   minStp    = 1.0d-45
-  maxStp    = 0.0001d0
+  maxStp    = -1.0
   ODEsolver = 'METHODS/TSRosWRA34PW2.ros'
 /END
 &OUTPUT
-  NetCdfFile  = 'RUN/TESTRUN/LLNL_nHeptane/LLNL_nheptane_test.nc'
+  NetCdfFile  = 'RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_test.nc'
   StpNetCDF   = 3.75d-5
   MatrixPrint = .F.
 /END
