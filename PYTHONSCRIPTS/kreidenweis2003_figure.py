@@ -26,9 +26,9 @@ final_color   = 'olive'
 row2_color    = 'black'
 jaruga_color  = "orange"
 
-fontsize_t=17
+fontsize_t=13
 fontsize_l=13
-
+dpi=400
 
 print("")
 
@@ -153,7 +153,7 @@ print("  SO4mm = ", 10**6 * sum(SVI_values[:,0]), "µg/m3")
 print("  NH4p  = ", 10**6 * sum(NH4p_values[:,0]), "µg/m3")
 
 
-f, axes = plt.subplot_mosaic('FAAAAG;CCDDEE', figsize=(10,8), dpi=500)
+f, axes = plt.subplot_mosaic('FAAAAG;CCDDEE', figsize=(10,8), dpi=dpi)
 axes['F'].axis('off')
 axes['G'].axis('off')
 
@@ -214,6 +214,14 @@ axes['A'].set_ylim([0.01,60.0])
 axes['A'].yaxis.set_ticks([0.01, 0.1, 1.0, 10])
 axes['A'].get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
 axes['A'].set_yticklabels(["0.01", "0.1", "1", "10"])
+
+sublabels = ["(a)", "(b)", "(c)", "(d)"]
+for iax, axname in enumerate(["A", "C", "D", "E"]):
+    if iax==0:
+        fac = 1.2
+    else:
+        fac = 1.025
+    axes[axname].text(axes[axname].get_xlim()[0], fac*axes[axname].get_ylim()[1], sublabels[iax])
 
 for ax in axes.values():
     ax.tick_params(labelsize=fontsize_l)
