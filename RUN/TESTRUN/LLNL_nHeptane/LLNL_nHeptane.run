@@ -18,7 +18,7 @@
   Pressure0   = 2.0d+5        ! in [Pa]
 /END
 &NUMERICS
-  RtolROW   = 1.0d-5
+  RtolROW   = 1.0d-4
   AtolGas   = 1.0d-15
   AtolTemp  = 1.0d-2
   Error_Est = 2

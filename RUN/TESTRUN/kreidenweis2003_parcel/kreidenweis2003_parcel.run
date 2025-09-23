@@ -20,7 +20,6 @@
   Pressure0   = 95000.0d0
   updraft_velocity = 0.5d0
   nDropletClasses = 50
-  alpha_H2O = 1.0
 /END
 &NUMERICS
   RtolROW  = 1.0d-4
