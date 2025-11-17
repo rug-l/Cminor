@@ -7,12 +7,12 @@
 MODULE NetCDF_Mod
 !--- Netcdf Output
   USE Kind_Mod,    ONLY: dp
-  USE Meteo_Mod,   ONLY: mol2part, Zenith, LWC_array, get_wet_radii
+  USE Meteo_Mod,   ONLY: mol2part, Zenith, LWC_array, get_wet_radii, r_cloud
   USE netcdf
   USE Reac_Mod,    ONLY: ns_GAS, Diag_Index, Diag_Name, Diag_LongName, DropletClasses,         &
                        & hasAquaSpc, hasPartiSpc, hasSolidSpc, hasPhotoReac, nDIM, nDIM2,      &
                        & nspc, nFrac, y_emi, y_name, MolMass, iAs, Hp_ind, OHm_ind, ns_AQUA,   &
-                       & hasGasSpc
+                       & hasGasSpc, AFrac, Mode
   !
   USE Control_Mod, ONLY: LenName, iNCout_G, iNCout_A_l, iNCout_A_m3, iNCout_A_m3_Ptr,          &
                        & Pi, tBegin, tEnd, combustion, TWO, HOUR, nDropletClasses, NetCdfFile, &
@@ -31,7 +31,7 @@ MODULE NetCDF_Mod
     INTEGER,      ALLOCATABLE :: Emiss_Pos(:)  ! Emission Positions (indices)
     CHARACTER(1), ALLOCATABLE :: Spc_Phase(:)  ! Phase of species g=gas , a=aqua, s=solid, p=parti
     REAL(dp),     ALLOCATABLE :: Spc_Conc(:)   ! Species concentrations at iTime
-    REAL(dp),     ALLOCATABLE :: Emiss_Conc(:) ! Species concentrations at iTime
+    REAL(dp),     ALLOCATABLE :: Emiss_Conc(:) ! Emission concentrations at iTime
     REAL(dp),     ALLOCATABLE :: AquaSumSpc(:) ! Sum of an aqueous species over all droplet classes at iTime
     REAL(dp),     ALLOCATABLE :: AquaSumDroplet(:) ! Sum of all aqueous species in a droplet classes at iTime
     REAL(dp),     ALLOCATABLE :: DissolvedMass(:)  ! Mass of all dissolved species
@@ -43,11 +43,14 @@ MODULE NetCDF_Mod
     REAL(dp)                  :: z             ! height at iTime
     REAL(dp)                  :: RH            ! relative humidity at iTime
     REAL(dp)                  :: LWC           ! Liquid water content value at iTime
+    REAL(dp)                  :: Nc            ! Number of cloud droplets (r>threshold) per mg air at iTime
     REAL(dp)                  :: StepSize      ! Step size value at iTime
     REAL(dp)                  :: GasConc       ! Sum of all gaseous species at iTime
     REAL(dp)                  :: SulfConc      ! Sum of all sulphuric species at iTime
     REAL(dp)                  :: Zenith        ! Zenith value at iTime
-    REAL(dp),     ALLOCATABLE :: WetRadius(:)  ! Size of cloud dropletts
+    REAL(dp),     ALLOCATABLE :: wetRadius(:)  ! Size of cloud droplets
+    REAL(dp),     ALLOCATABLE :: dryRadius(:)  ! Size of aerosol
+    REAL(dp),     ALLOCATABLE :: Number(:)     ! Number mixing ratio of a droplet class 
     INTEGER                   :: MaxErrorSpc   ! Index of species which has max error
     REAL(dp)                  :: ROWerror      ! Error value ROS step at iTime
   END TYPE NetCDF_T
@@ -58,10 +61,10 @@ MODULE NetCDF_Mod
   !
   !
 
-  INTEGER, ALLOCATABLE :: Diag_varid(:), WetRadius_varid(:), pH_varid(:), EmissDiag_varid(:)  &
+  INTEGER, ALLOCATABLE :: Diag_varid(:), wetRadius_varid(:), Number_varid(:), dryRadius_varid(:), pH_varid(:), EmissDiag_varid(:)  &
   &                     , AquaSumSpc_varid(:), DissolvedMolecules_varid(:), DissolvedMass_varid(:), AquaSumDroplet_varid(:)
   INTEGER :: rho_parcel_varid, z_parcel_varid, pressure_varid, q_parcel_varid, RH_varid
-  INTEGER :: x_varid, y_varid, rec_varid, LWC_varid
+  INTEGER :: x_varid, y_varid, rec_varid, LWC_varid, Nc_varid
   INTEGER :: StepSize_varid
   INTEGER :: Temperature_varid, zenith_varid
 
@@ -106,22 +109,24 @@ MODULE NetCDF_Mod
     INTEGER            :: iDiagSpc
     !
     NetCDF%iTime = 0
-    NetCDF%n_Out = nNcdfGas + 2*nFrac*nNcdfAqua
     NetCDF%n_Out = nNcdfGas + 2*nDropletClasses*nNcdfAqua
 
     ! output array containing diagnosis species (and temperature if combustion mechanism)
-    ALLOCATE(NetCDF%Spc_Conc(NetCDF%n_Out), NetCDF%WetRadius(nDropletClasses)) 
+    ALLOCATE(NetCDF%Spc_Conc(NetCDF%n_Out), NetCDF%wetRadius(nDropletClasses), NetCDF%dryRadius(nDropletClasses), NetCDF%Number(nDropletClasses)) 
 
     ! -- Allocate Netcdf Names etc.
     !
     ALLOCATE( Diag_LongName(NetCDF%n_Out) , Diag_Name(NetCDF%n_Out)   , Diag_Index(NetCDF%n_Out) &
-    &       , Diag_UNITS(NetCDF%n_Out)    , Diag_varid(NetCDF%n_Out)    &
-    &       , WetRadius_varid(nDropletClasses) , pH_varid(nDropletClasses) , pH_ind(nDropletClasses)  &
+    &       , Diag_UNITS(NetCDF%n_Out)    , Diag_varid(NetCDF%n_Out), wetRadius_varid(nDropletClasses) &
+    &       , dryRadius_varid(nDropletClasses), pH_varid(nDropletClasses) , pH_ind(nDropletClasses)  &
     &       , AquaSumDroplet_varid(nDropletClasses), EmissDiag_varid(nNcdfEmiss)                      &
-    &       , DissolvedMolecules_varid(nDropletClasses), DissolvedMass_varid(nDropletClasses) )
+    &       , DissolvedMolecules_varid(nDropletClasses), DissolvedMass_varid(nDropletClasses)        &
+    &       , Number_varid(nDropletClasses))
 
     Diag_varID      = 0
-    WetRadius_varid = 0
+    wetRadius_varid = 0
+    dryRadius_varid = 0
+    Number_varid    = 0
     pH_ind          = 0
 
     j = 0
@@ -227,11 +232,16 @@ MODULE NetCDF_Mod
       
     IF ( ns_AQUA>0 ) THEN
       CALL check ( NF90_DEF_VAR( ncid, 'LWC_Level' , NF90_DOUBLE, dimIDS, LWC_varid ) )
+      CALL check ( NF90_DEF_VAR( ncid, 'Nc       ' , NF90_DOUBLE, dimIDS, Nc_varid ) )
       ALLOCATE(NetCDF%DissolvedMolecules(nDropletClasses), NetCDF%DissolvedMass(nDropletClasses), NetCDF%AquaSumDroplet(nDropletClasses))
 
       DO iDr=1,nDropletClasses
         WRITE(tmpName,'(A,I0)') 'wetRadius_',iDr
         CALL check ( NF90_DEF_VAR( ncid, TRIM(tmpName), NF90_DOUBLE, dimIDS, wetRadius_varid(iDr) ) )
+        WRITE(tmpName,'(A,I0)') 'dryRadius_',iDr
+        CALL check ( NF90_DEF_VAR( ncid, TRIM(tmpName), NF90_DOUBLE, dimIDS, dryRadius_varid(iDr) ) )
+        WRITE(tmpName,'(A,I0)') 'Number_',iDr
+        CALL check ( NF90_DEF_VAR( ncid, TRIM(tmpName), NF90_DOUBLE, dimIDS, Number_varid(iDr) ) )
         WRITE(tmpName,'(A,I0)') 'AllAquaSpcSum_',iDr
         CALL check ( NF90_DEF_VAR( ncid, TRIM(tmpName), NF90_DOUBLE, dimIDS, AquaSumDroplet_varid(iDr) ) )
         WRITE(tmpName,'(A,I0)') 'DissolvedMass_',iDr
@@ -336,10 +346,23 @@ MODULE NetCDF_Mod
       CALL check( NF90_PUT_ATT(ncid, LWC_varid, NC_UNITS, '[l/m3]' ) )  
       CALL check( NF90_PUT_ATT(ncid, LWC_varid, "long_name", '[liter/m3]') ) 
       CALL check( NF90_PUT_ATT(ncid, LWC_varid, "_CoordinateAxes", "time") )
+      ! Nc
+      CALL check( NF90_PUT_ATT(ncid, Nc_varid, NC_UNITS, '[#/mg]' ) )  
+      CALL check( NF90_PUT_ATT(ncid, Nc_varid, "long_name", 'cloud droplet mixing ratio [#/mg]') ) 
+      CALL check( NF90_PUT_ATT(ncid, Nc_varid, "_CoordinateAxes", "time") )
       DO iDr=1,nDropletClasses
+        ! wet radius
         CALL check( NF90_PUT_ATT(ncid, wetRadius_varid(iDr), NC_UNITS, '[m]' ) )  
         CALL check( NF90_PUT_ATT(ncid, wetRadius_varid(iDr), "long_name", 'wet droplet radius [m]') ) 
         CALL check( NF90_PUT_ATT(ncid, wetRadius_varid(iDr), "_CoordinateAxes", "time") )
+        ! dry radius
+        CALL check( NF90_PUT_ATT(ncid, dryRadius_varid(iDr), NC_UNITS, '[nm]' ) )  
+        CALL check( NF90_PUT_ATT(ncid, dryRadius_varid(iDr), "long_name", 'dry aerosol radius (with density assumed constant) [nm]') ) 
+        CALL check( NF90_PUT_ATT(ncid, dryRadius_varid(iDr), "_CoordinateAxes", "time") )
+        ! number mixing ratio
+        CALL check( NF90_PUT_ATT(ncid, Number_varid(iDr), NC_UNITS, '[#/kg]' ) )  
+        CALL check( NF90_PUT_ATT(ncid, Number_varid(iDr), "long_name", 'number mixing ratio of droplet class [#/kg]') ) 
+        CALL check( NF90_PUT_ATT(ncid, Number_varid(iDr), "_CoordinateAxes", "time") )
         ! pH value
         IF (pH_ind(iDr)/=0) THEN
           CALL check( NF90_PUT_ATT(ncid, pH_varid(iDr), NC_UNITS, '[-]' ) )  
@@ -434,7 +457,7 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp,rho_air,q,pressure,z,RH,nDr
   REAL(dp), DIMENSION(nDropletClasses) :: LWCs, nDroplets
 
   !-- internal variable
-  INTEGER :: j
+  INTEGER :: j, iMode
   REAL(dp), PARAMETER    :: y_Min = 1.e-40_dp    
   REAL(dp), ALLOCATABLE :: tConc(:), tG(:), tA(:)
 
@@ -487,11 +510,33 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp,rho_air,q,pressure,z,RH,nDr
   IF (hasAquaSpc) THEN
     NCDF%LWC = SUM(LWCs)
 
-    NCDF%WetRadius = get_wet_radii(LWCs=LWCs, given_rho=rho_air)
+    NCDF%wetRadius = get_wet_radii(LWCs=LWCs, given_rho=rho_air)
 
-    ! for mol/l unit, divide all species by dropletclass-specific LWC
+    NCDF%Number = nDroplets
+
+    ! initialize Nc variable
+    NCDF%Nc = 0.0
     DO j = 1 , nDropletClasses
+
+      NCDF%dryRadius(j) = 0.0
+      DO iMode = 1, nFrac
+        NCDF%dryRadius(j) = NCDF%dryRadius(j) + SUM( tConc(nD_Ptr_spc(AFrac(iMode)%iSpecies)+j-1) &
+                                                   & * AFrac(iMode)%shares                        &
+                                                   & / mol2part                                   &
+                                                   & * MolMass(AFrac(iMode)%iSpecies))            &
+                                                   & / rho_air                                    &
+                                                   & / nDroplets(j)                               &
+                                                   & / Mode%Density(iMode)
+      END DO
+      NCDF%dryRadius(j) = (Pi34*NCDF%dryRadius(j))**rTHREE * 1.0e9 ! in nm
+
+      ! if radius > threshold, count as cloud droplets
+      IF (NCDF%wetRadius(j)>r_cloud) THEN
+        NCDF%Nc = NCDF%Nc + nDroplets(j)*1e-6 ! convert to #/mg
+      END IF
+
       NCDF%Spc_Conc(iNCout_A_l(iNCout_A_l_Ptr+j-1))  = tA(iNCout_A_l_Ptr+j-1)/LWCs(j)
+      ! for mol/l unit, divide all species by dropletclass-specific LWC
       NCDF%AquaSumDroplet(j) = SUM(NCDF%Spc_Conc(iNCout_A_l(iNCout_A_l_Ptr+j-1))) - (tConc(nD_Ptr_spc(Hp_ind)+j-1)+tConc(nD_Ptr_spc(OHm_ind)+j-1))/mol2part/LWCs(j)
       NCDF%DissolvedMass(j)  = ( SUM(MolMass(iAs)*tConc(nD_Ptr_spc(iAs) +j-1) / mol2part)   &
                              &   - 1.0  * tConc(nD_Ptr_spc(Hp_ind) +j-1) / mol2part    &
@@ -588,14 +633,17 @@ END SUBROUTINE SetOutputNCDF
     DO iDr=1,nDropletClasses
       IF (pH_ind(iDr)>=LBOUND(NCDF%Spc_Conc,1) .AND. pH_ind(iDr)<=UBOUND(NCDF%Spc_Conc,1)) THEN
         pH(iDr) = -LOG10( NCDF%Spc_Conc(pH_ind(iDr)) )
-      CALL check( NF90_PUT_VAR( ncid, pH_varid(iDr), pH(iDr), start = (/NCDF%iTime/) ) )
+        CALL check( NF90_PUT_VAR( ncid, pH_varid(iDr), pH(iDr), start = (/NCDF%iTime/) ) )
       END IF
-      CALL check( NF90_PUT_VAR( ncid, wetRadius_varid(iDr), NCDF%WetRadius(iDr), start = (/NCDF%iTime/) ) )
+      CALL check( NF90_PUT_VAR( ncid, wetRadius_varid(iDr), NCDF%wetRadius(iDr), start = (/NCDF%iTime/) ) )
+      CALL check( NF90_PUT_VAR( ncid, dryRadius_varid(iDr), NCDF%dryRadius(iDr), start = (/NCDF%iTime/) ) )
+      CALL check( NF90_PUT_VAR( ncid, Number_varid(iDr), NCDF%Number(iDr), start = (/NCDF%iTime/) ) )
       CALL check( NF90_PUT_VAR( ncid, AquaSumDroplet_varid(iDr), NCDF%AquaSumDroplet(iDr), start = (/NCDF%iTime/) ) )
       CALL check( NF90_PUT_VAR( ncid, DissolvedMass_varid(iDr), NCDF%DissolvedMass(iDr), start = (/NCDF%iTime/) ) )
       CALL check( NF90_PUT_VAR( ncid, DissolvedMolecules_varid(iDr), NCDF%DissolvedMolecules(iDr), start = (/NCDF%iTime/) ) )
     END DO
     CALL check( NF90_PUT_VAR( ncid, LWC_varid, NCDF%LWC, start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, Nc_varid , NCDF%Nc, start = (/NCDF%iTime/) ) )
     IF (nDropletClasses>1) THEN
       DO j=1,nNcdfAqua
         CALL check( NF90_PUT_VAR( ncid, AquaSumSpc_varid(j), NCDF%AquaSumSpc(j), start = (/NCDF%iTime/) ) )

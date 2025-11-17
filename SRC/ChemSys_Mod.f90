@@ -1601,8 +1601,8 @@ MODULE Chemsys_Mod
     CHARACTER(*)  :: FileName
     TYPE(AFrac_T), ALLOCATABLE :: AFrac(:)
 
-    INTEGER       :: cnt, iFrac, cnt2
-    REAL(dp)      :: c1
+    INTEGER       :: cnt, iFrac, cnt2, iPos, iiFrac, iPos2
+    REAL(dp)      :: c1, n_modes_with_iSpc
     CHARACTER(LenName) :: SpeciesName, iFrac_str
     CHARACTER(LenName), ALLOCATABLE :: missing_names(:)
     LOGICAL       :: Back=.FALSE.
@@ -1631,7 +1631,8 @@ MODULE Chemsys_Mod
         IF (PositionSpeciesAll(TRIM(SpeciesName))>0) cnt=cnt+1
       END DO
       CALL CloseIniFile
-      ALLOCATE(AFrac(iFrac)%Species(cnt), AFrac(iFrac)%Frac1(cnt), missing_names(cnt2-cnt))
+      IF (ALLOCATED(missing_names)) DEALLOCATE(missing_names)
+      ALLOCATE(AFrac(iFrac)%Species(cnt), AFrac(iFrac)%iSpecies(cnt), AFrac(iFrac)%shares(cnt), AFrac(iFrac)%Frac1(cnt), missing_names(cnt2-cnt))
       !
       CALL OpenIniFile(FileName)
       cnt=0
@@ -1645,11 +1646,26 @@ MODULE Chemsys_Mod
         &              R1=c1 )
         IF (Back) EXIT
         !
-        IF (PositionSpeciesAll(TRIM(SpeciesName))>0) THEN
+        iPos = PositionSpeciesAll(TRIM(SpeciesName))
+        IF (iPos>0) THEN
           cnt=cnt+1
           cnt2=cnt2+1
-          AFrac(iFrac)%Species(cnt) = TRIM(SpeciesName)
-          AFrac(iFrac)%Frac1(cnt)   = c1
+          AFrac(iFrac)%Species(cnt)  = TRIM(SpeciesName)
+          AFrac(iFrac)%iSpecies(cnt) = iPos
+          AFrac(iFrac)%Frac1(cnt)    = c1
+
+          ! check if species exists in other modes and save it to share between modes 
+          ! whenever species need to be back-assigned to modes (only diagnose)
+          AFrac(iFrac)%shares(cnt)   = ONE
+          DO iiFrac = 1, iFrac-1
+            iPos2 = FINDLOC(AFrac(iiFrac)%iSpecies, iPos, DIM=1)
+            IF (iPos2>0) THEN
+              n_modes_with_iSpc = 1.0 + 1.0/AFrac(iiFrac)%shares(iPos2)
+              AFrac(iiFrac)%shares(iPos2) = 1 / n_modes_with_iSpc
+              AFrac(iFrac)%shares(cnt)    = 1 / n_modes_with_iSpc
+            END IF
+          END DO
+
         ELSE
           cnt2=cnt2+1
           missing_names(cnt2-cnt) = SpeciesName

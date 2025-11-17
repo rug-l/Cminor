@@ -75,6 +75,9 @@ MODULE Meteo_Mod
   ! threshold for suppressing reactions in droplets with sum of concentrations higher than that
   REAL(dp), PARAMETER :: eps_ionic_strength = 0.02 ! [mol/l]
 
+  ! threshold radius to consider a particle cloud droplet
+  REAL(dp), PARAMETER :: r_cloud = 5.0e-6 ! [m]
+
 !-- more LWC stuff for pseudo function 
   REAL(dp) :: LWCb(6) ! boundaries for linear pseudo lwc function
 

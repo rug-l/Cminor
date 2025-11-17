@@ -425,7 +425,11 @@
 
   TYPE AFrac_T
     CHARACTER(LenName), ALLOCATABLE :: Species(:)
+    INTEGER,            ALLOCATABLE :: iSpecies(:)
     REAL(dp),           ALLOCATABLE :: Frac1(:)     ! [g/g]
+    REAL(dp),           ALLOCATABLE :: shares(:)    ! explanation below [dimensionless] 
+    ! shares: if a species exists in multiple modes, it needs to be split up between the modes whenever the species have to be
+    ! assigned to the modes back again (only for diagnose)
   END TYPE AFrac_T
 
   TYPE(AFRAC_T), ALLOCATABLE :: AFrac(:)
