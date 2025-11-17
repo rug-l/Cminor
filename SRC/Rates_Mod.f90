@@ -46,7 +46,7 @@
                               & mTHIRTY, EyChiZmin, Dust, nD_KAT, Start_Timer, rFIVE,   &
                               & rTWO, rTWENTY, rTWELV, rSIX, TWO, THREE, End_Timer,     &
                               & rFOUR, FOUR, TEN, kilo, pressure, q_parcel, T_parcel,   &
-                              & updraft_velocity, Out
+                              & updraft_velocity, switch_updraft_velocity, Out
      
     USE Sparse_Mod,       ONLY: BA, TB_sparse, DAX_sparse
 
@@ -1234,10 +1234,32 @@
 
   END SUBROUTINE rhs_condensation
 
-  FUNCTION rhs_z() RESULT(dzdt)
+  FUNCTION rhs_z(t) RESULT(dzdt)
+    REAL(dp) :: t
     REAL(dp) :: dzdt
 
-    dzdt = updraft_velocity
+    INTEGER :: iTime
+
+    dzdt = updraft_velocity(1)
+
+    IF (switch_updraft_velocity(1)<1.0e99_dp) THEN
+      ! linear interpolation in switch times or constant velocity
+      DO iTime=SIZE(switch_updraft_velocity), 1, -1
+        IF (t > switch_updraft_velocity(iTime)) THEN
+          IF (MOD(iTime, 2) .EQ. 0) THEN
+            ! constant w
+            dzdt = updraft_velocity(iTime/2+1)
+          ELSE
+            ! switching phase between two w's
+            ! linearly interpolate
+            dzdt = updraft_velocity(iTime/2+1) + (updraft_velocity(iTime/2+2)-updraft_velocity(iTime/2+1)) &
+                 & * (t-switch_updraft_velocity(iTime))/(switch_updraft_velocity(iTime+1)-switch_updraft_velocity(iTime))
+          END IF
+          EXIT
+        END IF
+      END DO
+    END IF
+
   END FUNCTION rhs_z
 
  END MODULE Rates_Mod

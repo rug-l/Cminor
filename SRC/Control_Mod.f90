@@ -62,7 +62,8 @@
       REAL(dp) :: LWCLevelmin       & ! Lower level for LWC
 &               , LWCLevelmax       & ! Upper level for LWC
 &               , activation_radius & ! radius for droplets to be activated (below, eq radius is used always)
-&               , updraft_velocity  & ! assumed updraft velocity (for adiabatic_parcel processes)
+&               , updraft_velocity(10) & ! assumed updraft velocity (for adiabatic_parcel processes)
+&               , switch_updraft_velocity(19) & ! times to switch updraft velocity (for adiabatic_parcel processes)
 &               , RH0               & ! initial relative humidity (for adiabatic_parcel processes)
 &               , RH                & ! current relative humidity (for adiabatic_parcel processes)
 &               , q_parcel          & ! amount of water vapor in box (for adiabatic_parcel processes)

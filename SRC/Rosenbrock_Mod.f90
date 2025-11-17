@@ -192,7 +192,7 @@ MODULE Rosenbrock_Mod
 
     CALL UpdateEmission(Emiss, Y)
 
-    CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, k=k, iStg=iStg)
+    CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, t, k=k, iStg=iStg)
 
   END SUBROUTINE Assemble_Interstitial_Rhs
 
@@ -227,11 +227,11 @@ MODULE Rosenbrock_Mod
 
     ! calculate right hand side
     IF ( combustion ) THEN
-      CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, dCdt_out=dCdt, dTdt_out=dTdt)
+      CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, t, dCdt_out=dCdt, dTdt_out=dTdt)
     ELSE IF ( adiabatic_parcel ) THEN
-      CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, dSeqdmw_out=dSeqdmw)
+      CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, t, dSeqdmw_out=dSeqdmw)
     ELSE 
-      CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h)
+      CALL Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, t)
     END IF
 
     IF ( combustion ) THEN
@@ -288,9 +288,9 @@ MODULE Rosenbrock_Mod
 
   END SUBROUTINE Assemble_Miter_and_First_Rhs_Classic
 
-  SUBROUTINE Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, k, iStg, dCdt_out, dTdt_out, dSeqdmw_out)
+  SUBROUTINE Assemble_Rhs_Classic(rhs, Rate, Emiss, Y, h, t, k, iStg, dCdt_out, dTdt_out, dSeqdmw_out)
     ! IN:
-    REAL(dp) :: Rate(nreac2), Emiss(nspc2), Y(ndim2), h
+    REAL(dp) :: Rate(nreac2), Emiss(nspc2), Y(ndim2), h, t
     REAL(dp), OPTIONAL :: k( nDIM2 , ROS%nStage )
     INTEGER, OPTIONAL :: iStg
     ! OUT:
@@ -321,7 +321,7 @@ MODULE Rosenbrock_Mod
 
       pressure = pressure_from_height(Y(izEq2)) ! pressure of parcel instantaneously adjusts to ambient conditions
       RH       = Y(iqEq2) / qsatw(Y(iTeq2), pressure)
-      dzdt     = rhs_z()
+      dzdt     = rhs_z(t)
       IF ( PRESENT(dSeqdmw_out) ) THEN ! calculate and output dSeqdm (for Jacobian in first step of every time step)
         CALL rhs_condensation(dmdt, DropletClasses, Y, RH, dSeqdmw_out=dSeqdmw_out)
       ELSE

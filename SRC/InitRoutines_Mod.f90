@@ -27,7 +27,7 @@ MODULE InitRoutines_Mod
                            & phSet, pressure0, rlat, rlon, adiabatic_parcel, ZERO,      &
                            & rTolROW, Simulation, StpConc, StpFlux, StpNetCdf, Tspan,   &
                            & tBegin, tEnd, Temperature0, combustion, Tspan_tot,         &
-                           & activation_radius, DropletClassPrint
+                           & activation_radius, DropletClassPrint, switch_updraft_velocity
 
       USE Meteo_Mod,   ONLY: R, molw_air, qsatw, H2O, RefRH, N2, O2, RefM_dry, RefO2,   &
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
@@ -57,6 +57,7 @@ MODULE InitRoutines_Mod
       &                 adiabatic_parcel , &
       &                 RH0 ,              &
       &                 updraft_velocity , &
+      &                 switch_updraft_velocity , &
       &                 pHSet ,            &
       &                 iDate ,            &
       &                 rlat ,             &
@@ -164,7 +165,9 @@ MODULE InitRoutines_Mod
       RH0               = RefRH
       nDropletClasses   = 1
       activation_radius = 1.0e-12_dp
-      updraft_velocity  = 1.0_dp
+      updraft_velocity  = 1.0e99_dp
+      updraft_velocity(1) = 0.0_dp
+      switch_updraft_velocity = 1.0e99_dp
       LwcLevelmin       = 2.0e-08_dp 
       LwcLevelmax       = 3.0e-04_dp 
       constLWC          = .FALSE. 
@@ -194,7 +197,6 @@ MODULE InitRoutines_Mod
         constLWC = .TRUE.
         LWCconst = LWCLevelmin
       END IF
-
 
       ! -- Set parcel/box-model conditions
       !
