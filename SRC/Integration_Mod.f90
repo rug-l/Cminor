@@ -20,10 +20,11 @@ MODULE Integration_Mod
                             & q_parcel, T_parcel, rho_parcel, updraft_velocity, z_parcel,  &
                             & adiabatic_parcel, nDropletClasses, RH, Pi43, m_parcel,       &
                             & milli, rTHREE, Pi34, kilo, Start_Timer, End_Timer,           &
-                            & TimerNetCDF, rho_parcel0
+                            & TimerNetCDF, rho_parcel0, LenName, nD_Ptr_spc
   !
   USE Reac_Mod,         ONLY: nDIM, nDIM2, Diag_Index, nspc, nspc2, ns_gas, iAqMassEq2,    &
-                            & iRhoEq2, iZeq2, ns_AQUA, DropletClasses, iTeq2, iqEq2
+                            & iRhoEq2, iZeq2, ns_AQUA, DropletClasses, iTeq2, iqEq2,       &
+                            & y_name
   !
   USE ChemKinInput_Mod, ONLY: Density
   USE Sparse_Mod,       ONLY: Jac_CC, BAT, A
@@ -135,6 +136,8 @@ MODULE Integration_Mod
       &               , Y0            & ! current concentration 
       &               , t             & ! current time
       &               , h             ) ! stepsize
+
+      CALL check_Y(Y)
 
       tnew  = t + h
       IF (done) THEN
@@ -303,5 +306,38 @@ MODULE Integration_Mod
 
     inbetween = old + (new-old)*fac
   END FUNCTION linpolate_vector
+
+  SUBROUTINE check_Y(Y)
+    REAL(dp) :: Y(:)
+
+    INTEGER :: i, j
+    CHARACTER(LenName) :: nan_name
+
+    DO j=1,SIZE(Y)
+      IF ( ISNAN(Y(j)) ) THEN
+        DO i = 1, nspc-1
+          IF (nD_Ptr_spc(i+1)>j) THEN
+            nan_name = y_name(i)
+          END IF
+        END DO
+        IF (adiabatic_parcel) THEN
+          IF (j==iTeq2) nan_name="Temperature"
+          IF (j==iqEq2) nan_name="q"
+          IF (j==iZeq2) nan_name="z"
+          IF (j==iRhoEq2) nan_name="rho_parcel"
+          IF (j>=iAqMassEq2(1) .AND. j<=iAqMassEq2(nDropletClasses)-1) nan_name="liquid water mass"
+        END IF
+
+        WRITE(*,*); WRITE(*,*); WRITE(*,*)
+        WRITE(*,'(10X,A)')        '  ERROR:  Species concentration is NaN ! '
+        WRITE(*,'(10X,A)')        '  -------------------------------------- '
+        WRITE(*,'(10X,A,A)')      '  Species name  =  ', nan_name
+        WRITE(*,'(10X,A,Es12.4)') '  Species val   =  ', Y(j)
+        WRITE(*,*); WRITE(*,*); WRITE(*,*)
+        STOP
+      END IF
+    END DO
+
+  END SUBROUTINE
 
 END MODULE Integration_Mod

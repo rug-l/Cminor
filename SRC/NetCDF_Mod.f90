@@ -465,19 +465,6 @@ SUBROUTINE SetOutputNCDF(NCDF,Time,StpSize,Conc,Temp,rho_air,q,pressure,z,RH,nDr
   !===  Saving Output
   !==================================================================
 
-  DO j=1,SIZE(Conc)
-    IF ( ISNAN(Conc(j)) ) THEN
-      WRITE(*,*); WRITE(*,*); WRITE(*,*)
-      WRITE(*,'(10X,A)')        '  ERROR:  Species concentration is NaN ! '
-      WRITE(*,'(10X,A)')        '  -------------------------------------- '
-      WRITE(*,'(10X,A,I0)')     '  NCDF idx      =  ', j
-      WRITE(*,'(10X,A,A)')      '  Species name  =  ', y_name(j)
-      WRITE(*,'(10X,A,Es12.4)') '  Species val   =  ', Conc(j)
-      WRITE(*,*); WRITE(*,*); WRITE(*,*)
-      STOP
-    END IF
-  END DO
-
   tConc = [ MAX(Conc,y_Min) ]             ! minimum for logarithmic plot
   IF ( combustion ) THEN
     tConc(1:nspc) = MoleConc_to_MoleFr(tConc(1:nspc))

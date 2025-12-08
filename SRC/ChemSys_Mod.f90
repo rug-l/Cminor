@@ -1176,9 +1176,18 @@ MODULE Chemsys_Mod
     END IF
   
     IF ( ns_AQUA>0 ) THEN
-      IF (Hp_ind==0)   WRITE(*,*) '   ReadChem...Warning: Hp not in mechanism!' 
-      IF (OHm_ind==0)  WRITE(*,*) '   ReadChem...Warning: OHm not in mechanism!' 
-      IF (aH2O_ind==0) WRITE(*,*) '   ReadChem...Warning: [aH2O] not in mechanism!' 
+      IF (Hp_ind==0) THEN
+        WRITE(*,*) '   ReadChem...Warning: Hp not in mechanism!'
+        STOP 'Improper aqueous chemical Mechanism given. Stopping'
+      END IF
+      IF (OHm_ind==0) THEN
+        WRITE(*,*) '   ReadChem...Warning: OHm not in mechanism!'
+        STOP 'Improper aqueous chemical Mechanism given. Stopping'
+      END IF
+      IF (aH2O_ind==0) THEN
+        WRITE(*,*) '   ReadChem...Warning: [aH2O] not in mechanism!'
+        STOP 'Improper aqueous chemical Mechanism given. Stopping'
+      END IF
     END IF
 
     REWIND(ChemUnit);  CLOSE(ChemUnit)
