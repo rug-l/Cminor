@@ -31,7 +31,7 @@ MODULE Integration_Mod
   USE Rosenbrock_Mod,   ONLY: Rosenbrock, Ros
   USE NetCDF_Mod,       ONLY: NetCDF, SetOutputNcdf, StepNetCDF
   USE Meteo_Mod,        ONLY: cv, pressure_from_height, qsatw, rho_H2O, get_wet_radii,     &
-                            & LWC_array
+                            & LWC_array, peak_S
   !
   USE Rates_Mod,        ONLY: rhs_condensation, rhs_T_cond_and_parcel, rhs_q_parcel,       &
                             & rhs_rho, UpdateTempArray
@@ -190,6 +190,8 @@ MODULE Integration_Mod
               IF (combustion) THEN
                 TempNCDF = YNCDF(nDIM)
               ELSE IF (adiabatic_parcel) THEN
+                ! peak S has to be calculated here to be accessible in SetOutputNCDF at the correct time step
+                IF (Y(iqEq2)/qsatw(Y(iTeq2), pressure_from_height(Y(izEq2)))-1>peak_S) peak_S = Y(iqEq2)/qsatw(Y(iTeq2), pressure_from_height(Y(izEq2)))-1
                 TempNCDF        = linpolate(T_parcel, Y(iTeq2), linfac)
                 rhoNCDF         = linpolate(rho_parcel, Y(iRhoeq2), linfac)
                 qNCDF           = linpolate(q_parcel, Y(iqEq2), linfac)
