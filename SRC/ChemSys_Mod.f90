@@ -1267,7 +1267,7 @@ MODULE Chemsys_Mod
     !
     !
     CHARACTER(LenName) :: SpeciesName
-    INTEGER :: iPos, i
+    INTEGER :: iPos, i, ierr
     LOGICAL :: Back=.FALSE.
     REAL(dp) :: mm, alpha, dg, c1
     REAL(dp) :: nue
@@ -1290,6 +1290,10 @@ MODULE Chemsys_Mod
       iPos = PositionSpeciesAll(SpeciesName)
       IF ( iPos > 0) THEN
         IF (iPos<=ns_GAS+ns_AQUA ) MolMass(iPos) = mm
+        IF (mm==-1.0e99_dp .OR. alpha==-1.0e99_dp .OR. dg==-1.0e99_dp) THEN
+          WRITE(*,*) 'Error in .dat-file: alpha or dg not given for '//TRIM(SpeciesName)
+          STOP
+        END IF
         IF (alpha==ZERO .AND. dg==ZERO) CYCLE GAS 
         !
         y_diff(iPos)  = 1.0_dp/(3.0_dp*dg)
@@ -1319,6 +1323,10 @@ MODULE Chemsys_Mod
         !
         iPos = PositionSpeciesAll(SpeciesName)
         IF ( iPos>0 ) THEN 
+          IF (mm==-1.0e99_dp .OR. alpha==-1.0e99_dp) THEN
+            WRITE(*,*) 'Error in .dat-file: alpha or dg not given for '//TRIM(SpeciesName)
+            STOP
+          END IF
           IF (iPos<=ns_GAS+ns_AQUA ) THEN
             iPos = iPos - ns_GAS
             MolMass(iPos+ns_GAS) = mm
@@ -1331,6 +1339,14 @@ MODULE Chemsys_Mod
       CALL RewindFile
       CALL ClearIniFile
     END IF
+
+    ! check if all molar masses etc. are given
+    IF (ANY(MolMass==ZERO)) THEN
+      WRITE(*,*) 'Error: Not all molar masses given. Provide that and other values in the *.dat-file.&
+               & (Unfortunately, I do not know which are missing.)'
+      STOP 'Error occured.'
+    END IF
+
     !
     !-----------------------------------------------------------
     ! --- Gas Phase RO2
