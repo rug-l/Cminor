@@ -28,6 +28,7 @@ RUN/TESTRUN/*.txt
 
 # python cache
 PYTHONSCRIPTS/__pycache__/
+PYTHONSCRIPTS/Figures/**/*.png
 
 # vim working files
 SRC/*.swp
