@@ -1290,6 +1290,10 @@ MODULE Chemsys_Mod
       iPos = PositionSpeciesAll(SpeciesName)
       IF ( iPos > 0) THEN
         IF (iPos<=ns_GAS+ns_AQUA ) MolMass(iPos) = mm
+        IF (mm==-1.0e99_dp .OR. alpha==-1.0e99_dp .OR. dg==-1.0e99_dp) THEN
+          WRITE(*,*) 'Error in .dat-file: MolMass/alpha/dg not given for '//TRIM(SpeciesName)
+          STOP 'Error occured.'
+        END IF
         IF (alpha==ZERO .AND. dg==ZERO) CYCLE GAS 
         !
         y_diff(iPos)  = 1.0_dp/(3.0_dp*dg)
@@ -1319,6 +1323,10 @@ MODULE Chemsys_Mod
         !
         iPos = PositionSpeciesAll(SpeciesName)
         IF ( iPos>0 ) THEN 
+          IF (mm==-1.0e99_dp .OR. alpha==-1.0e99_dp) THEN
+            WRITE(*,*) 'Error in .dat-file: MolMass/alpha not given for '//TRIM(SpeciesName)
+            STOP 'Error occured.'
+          END IF
           IF (iPos<=ns_GAS+ns_AQUA ) THEN
             iPos = iPos - ns_GAS
             MolMass(iPos+ns_GAS) = mm
@@ -1331,6 +1339,19 @@ MODULE Chemsys_Mod
       CALL RewindFile
       CALL ClearIniFile
     END IF
+
+    ! --- require MolMass for every gaseous/aqueous species in the mechanism
+    DO i = 1, ns_GAS
+      IF (MolMass(i) == ZERO) WRITE(*,*) '  Missing MolMass in *.dat for: ', TRIM(ListGas2(i)%Species)
+    END DO
+    DO i = 1, ns_AQUA
+      IF (MolMass(ns_GAS+i) == ZERO) WRITE(*,*) '  Missing MolMass in *.dat for: ', TRIM(ListAqua2(i)%Species)
+    END DO
+    IF (ANY(MolMass==ZERO)) THEN
+      WRITE(*,*) 'Error: Not all molar masses given. Add entries to BEGIN_DATAGAS/BEGIN_DATAQUA in the *.dat-file.'
+      STOP 'Error occured.'
+    END IF
+
     !
     !-----------------------------------------------------------
     ! --- Gas Phase RO2

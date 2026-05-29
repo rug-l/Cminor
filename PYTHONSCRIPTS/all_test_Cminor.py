@@ -115,7 +115,8 @@ warn_counter = 0
 fail_counter = 0
 
 if test_profile == "quick":
-    selected_runs = np.array([0, 1, 2, 3, 7])  # 3 atm + parcel + 1 combustion
+    # SmallStratoKPP, RACM_ML, parcel, combustion (MCM excluded: MCM_32.sys needs full MCM dat)
+    selected_runs = np.array([0, 2, 3, 7])
 else:
     selected_runs = np.arange(len(RUN_Files))
 
