@@ -103,14 +103,16 @@ else:
     selected_runs = np.arange(len(RUN_Files))
 
 for iRun in selected_runs:
-    runfile = RUN_Files[iRun]
+    runfile = str(RUN_Files[iRun])
+    testfile = str(test_ncdf[iRun])
+    referencefile = str(reference[iRun])
     if iRun in iSkipRuns:
         continue
 
     print("\n####### LABEL: "+runfile[runfile.rindex("/")+1:runfile.rindex(".run")]+" #######\n")
 
     print("Running "+runfile+"...", end="\r")
-    subprocess.run(["rm", "-f", test_ncdf[iRun]])
+    subprocess.run(["rm", "-f", testfile])
     run_status = subprocess.run(["./Cminor", runfile], stdout=outfile, stderr=outfile)
     print("Running "+runfile+"... Finished.")
     if run_status.returncode != 0:
@@ -119,7 +121,7 @@ for iRun in selected_runs:
         continue
 
     print("\nChecking "+runfile+" results...", end="\r")
-    reldata, absdata = ncdfcompare(test_ncdf[iRun], reference[iRun], modes[iRun])
+    reldata, absdata = ncdfcompare(testfile, referencefile, modes[iRun])
     print("Checking "+runfile+" results... Finished.")
 
     print("\nStatistics:\n")
