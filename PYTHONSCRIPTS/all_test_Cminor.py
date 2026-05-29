@@ -88,8 +88,25 @@ modes = np.array([ \
 # threshold to consider a relative error large
 rel_threshold = 1E-2
 
+CMINOR_BIN = CMINOR_DIR / "Cminor"
+CMINOR_OUTPUT_LOG = CMINOR_DIR / "RUN" / "TESTRUN" / "output_during_tests.txt"
+CMINOR_LOG_TAIL_LINES = 40
+
+
+def _print_cminor_log_tail():
+    if not CMINOR_OUTPUT_LOG.is_file():
+        print("  (no Cminor log at", CMINOR_OUTPUT_LOG, ")")
+        return
+    lines = CMINOR_OUTPUT_LOG.read_text(errors="replace").splitlines()
+    tail = lines[-CMINOR_LOG_TAIL_LINES:]
+    print("  --- last lines of", CMINOR_OUTPUT_LOG.name, "---")
+    for line in tail:
+        print("  ", line)
+    print("  --- end log tail ---")
+
+
 # file where Cminors output is written
-outfile = open(CMINOR_DIR / "RUN" / "TESTRUN" / "output_during_tests.txt", "w")
+outfile = open(CMINOR_OUTPUT_LOG, "w")
 logfile = open(CMINOR_DIR / "RUN" / "TESTRUN" / "log_during_tests.txt", "w")
 original_stdout = sys.stdout
 sys.stdout = Tee(sys.stdout, logfile)
@@ -103,26 +120,53 @@ else:
     selected_runs = np.arange(len(RUN_Files))
 
 for iRun in selected_runs:
-    runfile = str(RUN_Files[iRun])
-    testfile = str(test_ncdf[iRun])
-    referencefile = str(reference[iRun])
+    runfile = RUN_Files[iRun]
+    testfile = test_ncdf[iRun]
+    referencefile = reference[iRun]
     if iRun in iSkipRuns:
         continue
 
-    print("\n####### LABEL: "+runfile[runfile.rindex("/")+1:runfile.rindex(".run")]+" #######\n")
+    label = runfile.name.replace(".run", "")
+    print("\n####### LABEL: " + label + " #######\n")
 
-    print("Running "+runfile+"...", end="\r")
-    subprocess.run(["rm", "-f", testfile])
-    run_status = subprocess.run(["./Cminor", runfile], stdout=outfile, stderr=outfile)
-    print("Running "+runfile+"... Finished.")
-    if run_status.returncode != 0:
-        print("ERROR: Cminor run failed with return code", run_status.returncode)
+    if not referencefile.is_file():
+        print("ERROR: reference NetCDF missing:", referencefile)
         fail_counter += 1
         continue
 
-    print("\nChecking "+runfile+" results...", end="\r")
-    reldata, absdata = ncdfcompare(testfile, referencefile, modes[iRun])
-    print("Checking "+runfile+" results... Finished.")
+    if not CMINOR_BIN.is_file():
+        print("ERROR: Cminor executable missing:", CMINOR_BIN)
+        print("       build with: make Cminor")
+        fail_counter += 1
+        continue
+
+    print("Running " + str(runfile) + "...", end="\r")
+    subprocess.run(["rm", "-f", str(testfile)], cwd=CMINOR_DIR, check=False)
+    run_arg = runfile.relative_to(CMINOR_DIR)
+    run_status = subprocess.run(
+        [str(CMINOR_BIN), str(run_arg)],
+        cwd=CMINOR_DIR,
+        stdin=subprocess.DEVNULL,
+        stdout=outfile,
+        stderr=outfile,
+    )
+    outfile.flush()
+    print("Running " + str(runfile) + "... Finished.")
+    if run_status.returncode != 0:
+        print("ERROR: Cminor run failed with return code", run_status.returncode)
+        _print_cminor_log_tail()
+        fail_counter += 1
+        continue
+
+    if not testfile.is_file():
+        print("ERROR: expected output NetCDF missing:", testfile)
+        _print_cminor_log_tail()
+        fail_counter += 1
+        continue
+
+    print("\nChecking " + str(runfile) + " results...", end="\r")
+    reldata, absdata = ncdfcompare(str(testfile), str(referencefile), modes[iRun])
+    print("Checking " + str(runfile) + " results... Finished.")
 
     print("\nStatistics:\n")
     print("  Largest relative error: "+"%2.3f"%(reldata[0]*100)+"% for "+reldata[1]+" at values "+"%.5e"%reldata[2][0]+" and "+"%.5e"%reldata[2][1])
@@ -133,8 +177,13 @@ for iRun in selected_runs:
         print("\nWARNING !!! Large relative error !")
         warn_counter += 1
 
-if warn_counter>0:
-    print("\n  Finished testing Cminor. There were large relative errors in "+str(warn_counter)+" run"+(warn_counter!=1)*"s"+"!")
+if fail_counter > 0:
+    print("\n  Finished testing Cminor. There were failures in "
+          + str(fail_counter) + " run" + ("s" if fail_counter != 1 else "") + ".")
+    print("  See", CMINOR_OUTPUT_LOG.name, "under RUN/TESTRUN/ for Cminor output.")
+elif warn_counter > 0:
+    print("\n  Finished testing Cminor. There were large relative errors in "
+          + str(warn_counter) + " run" + ("s" if warn_counter != 1 else "") + "!")
     print("")
     print("  Please note that the indicator for large errors might already trigger if tolerances have been adjusted or similar.")
     print("  It might still be insignificant and is just a neccessary condition for a true failure.")
