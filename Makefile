@@ -35,7 +35,11 @@
 
 # --- Mac paths
 # BLAS and LAPACK library directories
-NETCDF_DIR=/opt/homebrew
+# On macOS, use the Accelerate framework for BLAS+LAPACK (see LIBS below);
+# BLAS_LIB_DIR/LAPACK_LIB_DIR kept for compatibility with the Linux branch.
+NETCDF_DIR=/opt/homebrew/opt/netcdf-fortran
+NETCDF_C_DIR=/opt/homebrew/opt/netcdf
+HDF5_DIR=/opt/homebrew/opt/hdf5
 BLAS_LIB_DIR=/opt/homebrew/lib
 LAPACK_LIB_DIR=/opt/homebrew/lib
 
@@ -49,6 +53,7 @@ LAPACK_LIB_DIR=/opt/homebrew/lib
 # Compiler settings
 #------------------------------------------------------------------------------
 FC=gfortran# Fortran compiler
+PYTHON ?= python3
 # Free-form Fortran flags to handle line length
 FFLAGS_FREE = -ffree-form -ffixed-line-length-none -ffree-line-length-none
 
@@ -84,10 +89,11 @@ INCLUDES_DBG = -I$(LIB_DBG_DIR) -I$(NETCDF_DIR)/include
 #------------------------------------------------------------------------------
 # External libraries required for linking
 # Add the library paths to the runtime library search path using the -Wl,-rpath flag during linking
+# macOS: use Accelerate for BLAS+LAPACK (no separate -lblas -llapack)
 #------------------------------------------------------------------------------
-LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib,-rpath,$(BLAS_LIB_DIR),-rpath,$(LAPACK_LIB_DIR) \
-       -lcurl -L$(NETCDF_DIR)/lib -L$(BLAS_LIB_DIR) -L$(LAPACK_LIB_DIR) \
-       -lnetcdf -lnetcdff -lhdf5_hl -lhdf5 -llapack -lblas
+LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib,-rpath,$(NETCDF_C_DIR)/lib,-rpath,$(HDF5_DIR)/lib \
+       -lcurl -L$(NETCDF_DIR)/lib -L$(NETCDF_C_DIR)/lib -L$(HDF5_DIR)/lib \
+       -lnetcdf -lnetcdff -lhdf5_hl -lhdf5 -framework Accelerate
 
 #------------------------------------------------------------------------------
 # Source files - all Fortran 90 files that make up the project
@@ -140,16 +146,45 @@ $(LIB_DBG_DIR)/%.o: $(SRC_DIR)/%.f90 | $(LIB_DBG_DIR)
 #------------------------------------------------------------------------------
 # Test and cleanup targets
 #------------------------------------------------------------------------------
-# Run test suite
-test: Cminor
+# Run smoke test suite (legacy behavior)
+test: test-smoke
+
+test-smoke: Cminor
 	./Cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
 	./Cminor RUN/TESTRUN/RACM_ML/RACM_ML.run
 	./Cminor RUN/TESTRUN/MCM/MCM.run
 	./Cminor RUN/TESTRUN/kreidenweis2003_parcel/kreidenweis2003_parcel.run
+	./Cminor RUN/TESTRUN/RACM+CAPRAM/RACM+C24.run
 	./Cminor RUN/TESTRUN/MCM+CAPRAM/MCM+CAPRAM.run
-	./Cminor RUN/TESTRUN/ERC_nheptane/ERC_nheptane.run
+	./Cminor RUN/TESTRUN/ERC_nHeptane/ERC_nHeptane.run
 	./Cminor RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane.run
 	./Cminor RUN/TESTRUN/LLNL_MD/LLNL_MD.run
+
+# Run full regression checks against NetCDF references
+test-regression: Cminor
+	$(PYTHON) PYTHONSCRIPTS/all_test_Cminor.py
+
+# Run diagnosis checks, create plots of the test and reference NetCDF files against NetCDF references
+test-diagnosis: test-regression
+	mkdir -p RUN/TESTRUN/diagnostics
+	$(PYTHON) PYTHONSCRIPTS/plot_test_diagnosis.py \
+		--test RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_test.nc \
+		--ref RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_reference.nc \
+		--mode atm \
+		--label SmallStratoKPP \
+		--out PYTHONSCRIPTS/Figures/test_diagnosis/SmallStratoKPP_diagnostic.png
+	$(PYTHON) PYTHONSCRIPTS/plot_test_diagnosis.py \
+		--test RUN/TESTRUN/MCM/MCM_test.nc \
+		--ref RUN/TESTRUN/MCM/MCM_reference.nc \
+		--mode atm \
+		--label MCM \
+		--out PYTHONSCRIPTS/Figures/test_diagnosis/MCM_diagnostic.png
+	$(PYTHON) PYTHONSCRIPTS/plot_test_diagnosis.py \
+		--test RUN/TESTRUN/LLNL_MD/LLNL_MD_test.nc \
+		--ref RUN/TESTRUN/LLNL_MD/LLNL_MD_reference.nc \
+		--mode comb \
+		--label LLNL_MD \
+		--out PYTHONSCRIPTS/Figures/test_diagnosis/LLNL_MD_diagnostic.png
 
 # Clean build artifacts - only within project directories
 clean:
@@ -158,4 +193,4 @@ clean:
 	rm -f Cminor Cminor_dbg
 
 # Declare phony targets (targets that don't create files)
-.PHONY: all clean test
+.PHONY: all clean test test-smoke test-regression test-diagnosis
