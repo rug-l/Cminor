@@ -37,11 +37,11 @@
 # BLAS and LAPACK library directories
 # On macOS, use the Accelerate framework for BLAS+LAPACK (see LIBS below);
 # BLAS_LIB_DIR/LAPACK_LIB_DIR kept for compatibility with the Linux branch.
-NETCDF_DIR=/opt/homebrew/opt/netcdf-fortran
-NETCDF_C_DIR=/opt/homebrew/opt/netcdf
-HDF5_DIR=/opt/homebrew/opt/hdf5
-BLAS_LIB_DIR=/opt/homebrew/lib
-LAPACK_LIB_DIR=/opt/homebrew/lib
+NETCDF_DIR ?= /opt/homebrew/opt/netcdf-fortran
+NETCDF_C_DIR ?= /opt/homebrew/opt/netcdf
+HDF5_DIR ?= /opt/homebrew/opt/hdf5
+BLAS_LIB_DIR ?= /opt/homebrew/lib
+LAPACK_LIB_DIR ?= /opt/homebrew/lib
 
 # --- TROPOS dusti paths
 # NETCDF_DIR=/opt/tools/packages/gcc-7.2.0/netcdf-4.4.1.1
@@ -52,7 +52,8 @@ LAPACK_LIB_DIR=/opt/homebrew/lib
 #------------------------------------------------------------------------------
 # Compiler settings
 #------------------------------------------------------------------------------
-FC=gfortran# Fortran compiler
+# Default gfortran; overrides conda/shell FC=f77. CI/mac: make Cminor FC="${FC}"
+FC = gfortran# Fortran compiler
 PYTHON ?= python
 # Free-form Fortran flags to handle line length
 FFLAGS_FREE = -ffree-form -ffixed-line-length-none -ffree-line-length-none
@@ -82,18 +83,33 @@ FFLAGS_DBG += -I$(METHODS_DIR) -I.
 
 #------------------------------------------------------------------------------
 # Include paths for header files and modules
+# Linux: nf-config supplies Fortran module path (not always under include/)
 #------------------------------------------------------------------------------
-INCLUDES_OPT = -I$(LIB_DIR) -I$(NETCDF_DIR)/include
-INCLUDES_DBG = -I$(LIB_DBG_DIR) -I$(NETCDF_DIR)/include
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+  NETCDF_FFLAGS := $(shell nf-config --fflags 2>/dev/null)
+  INCLUDES_OPT = -I$(LIB_DIR) -I$(NETCDF_DIR)/include $(NETCDF_FFLAGS)
+  INCLUDES_DBG = -I$(LIB_DBG_DIR) -I$(NETCDF_DIR)/include $(NETCDF_FFLAGS)
+else
+  INCLUDES_OPT = -I$(LIB_DIR) -I$(NETCDF_DIR)/include
+  INCLUDES_DBG = -I$(LIB_DBG_DIR) -I$(NETCDF_DIR)/include
+endif
 
 #------------------------------------------------------------------------------
 # External libraries required for linking
 # Add the library paths to the runtime library search path using the -Wl,-rpath flag during linking
 # macOS: use Accelerate for BLAS+LAPACK (no separate -lblas -llapack)
+# Linux (CI/apt): OpenBLAS + LAPACK from distro packages
 #------------------------------------------------------------------------------
+ifeq ($(UNAME_S),Linux)
+LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib -Wl,-rpath,/usr/lib/x86_64-linux-gnu \
+       -lcurl -L$(NETCDF_DIR)/lib -L/usr/lib/x86_64-linux-gnu \
+       -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -llapack -lopenblas
+else
 LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib,-rpath,$(NETCDF_C_DIR)/lib,-rpath,$(HDF5_DIR)/lib \
        -lcurl -L$(NETCDF_DIR)/lib -L$(NETCDF_C_DIR)/lib -L$(HDF5_DIR)/lib \
        -lnetcdf -lnetcdff -lhdf5_hl -lhdf5 -framework Accelerate
+endif
 
 #------------------------------------------------------------------------------
 # Source files - all Fortran 90 files that make up the project

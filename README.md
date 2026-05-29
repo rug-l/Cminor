@@ -67,3 +67,18 @@ Cminor can be run in one of three configurations:
    ```bash
    ./Cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
    ```
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) builds `Cminor` on Ubuntu and macOS, then runs `make test-regression` with `CMINOR_TEST_PROFILE=quick`.
+
+Override NetCDF paths without editing the Makefile (as CI does):
+
+```bash
+export NETCDF_DIR=/usr
+export NETCDF_C_DIR=/usr
+export HDF5_DIR=/usr
+make Cminor
+```
+
+On macOS runners, Homebrew `gcc` supplies `gfortran-*`; CI sets `FC` accordingly. The project still uses the Makefile as the canonical build; [fpm](https://github.com/fortran-lang/fpm) is optional for local workflows (`brew install fpm`) but not required for CI.

@@ -27,7 +27,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gfortran libnetcdf-dev libnetcdff-dev libhdf5-dev libopenblas-dev liblapack-dev
+          sudo apt-get install -y gfortran libnetcdf-dev libnetcdff-dev libhdf5-dev \
+            libopenblas-dev liblapack-dev libcurl4-openssl-dev
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
@@ -35,14 +36,16 @@ jobs:
           brew update
           brew install gcc netcdf-fortran netcdf hdf5
 
-      - name: Set macOS library paths
+      - name: Set macOS build environment
         if: runner.os == 'macOS'
         run: |
+          echo "$(brew --prefix gcc)/bin" >> "$GITHUB_PATH"
+          echo "FC=$(brew --prefix gcc)/bin/gfortran" >> "$GITHUB_ENV"
           echo "NETCDF_DIR=$(brew --prefix netcdf-fortran)" >> "$GITHUB_ENV"
           echo "NETCDF_C_DIR=$(brew --prefix netcdf)" >> "$GITHUB_ENV"
           echo "HDF5_DIR=$(brew --prefix hdf5)" >> "$GITHUB_ENV"
 
-      - name: Set Linux library paths
+      - name: Set Linux build environment
         if: runner.os == 'Linux'
         run: |
           echo "NETCDF_DIR=/usr" >> "$GITHUB_ENV"
@@ -54,16 +57,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build Cminor (macOS)
-        if: runner.os == 'macOS'
-        run: make Cminor
-
-      - name: Build Cminor (Linux)
-        if: runner.os == 'Linux'
+      - name: Build Cminor
         run: |
-          make Cminor LIBS="-Wl,-rpath,$(NETCDF_DIR)/lib -lcurl \
-            -L$(NETCDF_DIR)/lib -L/usr/lib/x86_64-linux-gnu \
-            -lnetcdf -lnetcdff -lhdf5_hl -lhdf5 -llapack -lopenblas"
+          if [ -n "${FC:-}" ]; then
+            make Cminor FC="${FC}"
+          else
+            make Cminor
+          fi
 
       - name: Run quick regression suite
         env:
