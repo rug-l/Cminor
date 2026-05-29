@@ -102,9 +102,12 @@ endif
 # Linux (CI/apt): OpenBLAS + LAPACK from distro packages
 #------------------------------------------------------------------------------
 ifeq ($(UNAME_S),Linux)
+# Debian/Ubuntu: HDF5 libs live under hdf5/serial (libhdf5_serial, not libhdf5)
+HDF5_LIBDIR := /usr/lib/x86_64-linux-gnu/hdf5/serial
 LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib -Wl,-rpath,/usr/lib/x86_64-linux-gnu \
-       -lcurl -L$(NETCDF_DIR)/lib -L/usr/lib/x86_64-linux-gnu \
-       -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -llapack -lopenblas
+       -Wl,-rpath,$(HDF5_LIBDIR) \
+       -lcurl -L$(NETCDF_DIR)/lib -L/usr/lib/x86_64-linux-gnu -L$(HDF5_LIBDIR) \
+       -lnetcdff -lnetcdf -lhdf5_serial_hl -lhdf5_serial -llapack -lopenblas
 else
 LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib,-rpath,$(NETCDF_C_DIR)/lib,-rpath,$(HDF5_DIR)/lib \
        -lcurl -L$(NETCDF_DIR)/lib -L$(NETCDF_C_DIR)/lib -L$(HDF5_DIR)/lib \

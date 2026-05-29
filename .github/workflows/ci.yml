@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gfortran libnetcdf-dev libnetcdff-dev libhdf5-dev \
-            libopenblas-dev liblapack-dev libcurl4-openssl-dev
+            libhdf5-serial-dev libopenblas-dev liblapack-dev libcurl4-openssl-dev pkg-config
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
