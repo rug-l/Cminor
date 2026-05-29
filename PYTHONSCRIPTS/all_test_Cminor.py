@@ -6,7 +6,12 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 
-from fcns_all_test_Cminor import *
+import numpy as np
+import os
+import sys
+import subprocess
+from pathlib import Path
+from fcns_all_test_Cminor import ncdfcompare, Tee
 
 # routine to run exemplary atmospheric and combustion mechanisms with Cminor to see if they produce the results they should
 
@@ -25,9 +30,9 @@ if test_profile not in ("full", "quick"):
 # optional strict mode: fail process on large relative errors
 fail_on_warning = os.getenv("CMINOR_FAIL_ON_WARNING", "0") == "1"
 
-
+CMINOR_DIR = Path(__file__).parent.parent.resolve()
 # run files to be tested
-RUN_Files = np.array([ \
+RUN_Files = CMINOR_DIR / np.array([ \
                        "RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run"                          \
                      , "RUN/TESTRUN/MCM/MCM.run"                                                \
                      , "RUN/TESTRUN/RACM_ML/RACM_ML.run"                                        \
@@ -39,9 +44,8 @@ RUN_Files = np.array([ \
                      , "RUN/TESTRUN/LLNL_MD/LLNL_MD.run"                                        \
                      ])
 
-
 # netcdf files to be assumed the truth
-reference = np.array([ \
+reference = CMINOR_DIR / np.array([ \
                        "RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_reference.nc"                 \
                      , "RUN/TESTRUN/MCM/MCM_reference.nc"                                       \
                      , "RUN/TESTRUN/RACM_ML/RACM_ML_reference.nc"                               \
@@ -53,8 +57,9 @@ reference = np.array([ \
                      , "RUN/TESTRUN/LLNL_MD/LLNL_MD_reference.nc"                               \
                      ])
 
+
 # netcdf files that are generated (have to be the same as in the run files RUN_Files)
-test_ncdf = np.array([ \
+test_ncdf = CMINOR_DIR / np.array([ \
                        "RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_test.nc"                      \
                      , "RUN/TESTRUN/MCM/MCM_test.nc"                                            \
                      , "RUN/TESTRUN/RACM_ML/RACM_ML_test.nc"                                    \
@@ -84,8 +89,8 @@ modes = np.array([ \
 rel_threshold = 1E-2
 
 # file where Cminors output is written
-outfile = open("RUN/TESTRUN/output_during_tests.txt", "w")
-logfile = open("RUN/TESTRUN/log_during_tests.txt", "w")
+outfile = open(CMINOR_DIR / "RUN" / "TESTRUN" / "output_during_tests.txt", "w")
+logfile = open(CMINOR_DIR / "RUN" / "TESTRUN" / "log_during_tests.txt", "w")
 original_stdout = sys.stdout
 sys.stdout = Tee(sys.stdout, logfile)
 # global counter to count large relative errors and show at the end
