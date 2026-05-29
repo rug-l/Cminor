@@ -227,7 +227,7 @@ for ax in axes.values():
     ax.tick_params(labelsize=fontsize_l)
 
 plt.tight_layout()
-plt.savefig("/Users/rug/Cminor/PYTHONSCRIPTS/Figures/kreidenweis2003_figure1.png")
-#plt.show()
+plt.savefig("PYTHONSCRIPTS/Figures/kreidenweis2003_figure1.png")
+# plt.show()
 
 print("  Finished Kreidenweis2003 figure.\n")
