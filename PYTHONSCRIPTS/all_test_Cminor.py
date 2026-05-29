@@ -13,6 +13,18 @@ from fcns_all_test_Cminor import *
 # runs to skip, enter numbers between >=1 and <=9 and the respective simulations will be skipped
 iSkipRuns = np.array([])
 
+# test profile:
+#   full  -> run all cases (default)
+#   quick -> run reduced smoke set for faster CI cycles
+test_profile = os.getenv("CMINOR_TEST_PROFILE", "full").lower()
+if test_profile not in ("full", "quick"):
+    print("ERROR: unknown CMINOR_TEST_PROFILE =", test_profile)
+    print("       use one of: full, quick")
+    sys.exit(2)
+
+# optional strict mode: fail process on large relative errors
+fail_on_warning = os.getenv("CMINOR_FAIL_ON_WARNING", "0") == "1"
+
 
 # run files to be tested
 RUN_Files = np.array([ \
@@ -78,7 +90,15 @@ original_stdout = sys.stdout
 sys.stdout = Tee(sys.stdout, logfile)
 # global counter to count large relative errors and show at the end
 warn_counter = 0
-for iRun, runfile in enumerate(RUN_Files):
+fail_counter = 0
+
+if test_profile == "quick":
+    selected_runs = np.array([0, 1, 2, 3, 7])  # 3 atm + parcel + 1 combustion
+else:
+    selected_runs = np.arange(len(RUN_Files))
+
+for iRun in selected_runs:
+    runfile = RUN_Files[iRun]
     if iRun in iSkipRuns:
         continue
 
@@ -86,8 +106,12 @@ for iRun, runfile in enumerate(RUN_Files):
 
     print("Running "+runfile+"...", end="\r")
     subprocess.run(["rm", "-f", test_ncdf[iRun]])
-    subprocess.run(["./Cminor", runfile], stdout=outfile)
+    run_status = subprocess.run(["./Cminor", runfile], stdout=outfile, stderr=outfile)
     print("Running "+runfile+"... Finished.")
+    if run_status.returncode != 0:
+        print("ERROR: Cminor run failed with return code", run_status.returncode)
+        fail_counter += 1
+        continue
 
     print("\nChecking "+runfile+" results...", end="\r")
     reldata, absdata = ncdfcompare(test_ncdf[iRun], reference[iRun], modes[iRun])
@@ -116,3 +140,9 @@ print("")
 sys.stdout = original_stdout
 outfile.close()
 logfile.close()
+
+if fail_counter > 0:
+    sys.exit(1)
+
+if warn_counter > 0 and fail_on_warning:
+    sys.exit(1)
