@@ -81,7 +81,10 @@ MODULE Meteo_Mod
 !-- more LWC stuff for pseudo function 
   REAL(dp) :: LWCb(6) ! boundaries for linear pseudo lwc function
 
-CONTAINS 
+!-- peak supersaturation (will be diagnosed while integrating)
+  REAL(dp) :: peak_S
+
+CONTAINS
 
   !=========================================================================!
   !                  calculate sun 

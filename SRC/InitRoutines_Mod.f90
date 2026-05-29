@@ -31,7 +31,7 @@ MODULE InitRoutines_Mod
 
       USE Meteo_Mod,   ONLY: R, molw_air, qsatw, H2O, RefRH, N2, O2, RefM_dry, RefO2,   &
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
-                           & mol2part, RefN2, SI_Gas, alpha_H2O, beta_H2O
+                           & mol2part, RefN2, SI_Gas, alpha_H2O, beta_H2O, peak_S
 
       INTEGER        :: io_stat
       CHARACTER(400) :: io_msg = ''
@@ -206,6 +206,7 @@ MODULE InitRoutines_Mod
       !
       ! initial mixing ratio of parcel
       RH = RH0
+      peak_S = RH - 1
       q_parcel = RH * qsatw(T_parcel, Pressure0)
       !
       ! calculate density of air in parcel according to ideal gas law

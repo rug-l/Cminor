@@ -7,7 +7,7 @@
 MODULE NetCDF_Mod
 !--- Netcdf Output
   USE Kind_Mod,    ONLY: dp
-  USE Meteo_Mod,   ONLY: mol2part, Zenith, LWC_array, get_wet_radii, r_cloud
+  USE Meteo_Mod,   ONLY: mol2part, Zenith, LWC_array, get_wet_radii, r_cloud, peak_S
   USE netcdf
   USE Reac_Mod,    ONLY: ns_GAS, Diag_Index, Diag_Name, Diag_LongName, DropletClasses,         &
                        & hasAquaSpc, hasPartiSpc, hasSolidSpc, hasPhotoReac, nDIM, nDIM2,      &
@@ -63,7 +63,7 @@ MODULE NetCDF_Mod
 
   INTEGER, ALLOCATABLE :: Diag_varid(:), wetRadius_varid(:), Number_varid(:), dryRadius_varid(:), pH_varid(:), EmissDiag_varid(:)  &
   &                     , AquaSumSpc_varid(:), DissolvedMolecules_varid(:), DissolvedMass_varid(:), AquaSumDroplet_varid(:)
-  INTEGER :: rho_parcel_varid, z_parcel_varid, pressure_varid, q_parcel_varid, RH_varid
+  INTEGER :: rho_parcel_varid, z_parcel_varid, pressure_varid, q_parcel_varid, RH_varid, peakS_varid
   INTEGER :: x_varid, y_varid, rec_varid, LWC_varid, Nc_varid
   INTEGER :: StepSize_varid
   INTEGER :: Temperature_varid, zenith_varid
@@ -276,6 +276,7 @@ MODULE NetCDF_Mod
       CALL check( NF90_DEF_VAR( ncid, 'pressure',   NF90_DOUBLE, dimIDs, pressure_varid) )
       CALL check( NF90_DEF_VAR( ncid, 'z_parcel',   NF90_DOUBLE, dimIDs, z_parcel_varid) )
       CALL check( NF90_DEF_VAR( ncid, 'RH_parcel',  NF90_DOUBLE, dimIDs, RH_varid) )
+      CALL check( NF90_DEF_VAR( ncid, 'peak S',  NF90_DOUBLE, dimIDs, peakS_varid) )
     END IF
 
     !
@@ -334,6 +335,9 @@ MODULE NetCDF_Mod
       CALL check( NF90_PUT_ATT(ncid, RH_varid        , NC_UNITS, '[none]' ) )  
       CALL check( NF90_PUT_ATT(ncid, RH_varid        , "long_name", 'relative humidity in adiabatic parcel') ) 
       CALL check( NF90_PUT_ATT(ncid, RH_varid        , "_CoordinateAxes", "time") )
+      CALL check( NF90_PUT_ATT(ncid, peakS_varid     , NC_UNITS, '[none]' ) )  
+      CALL check( NF90_PUT_ATT(ncid, peakS_varid     , "long_name", 'maximum Supersaturation since beginning in adiabatic parcel') ) 
+      CALL check( NF90_PUT_ATT(ncid, peakS_varid     , "_CoordinateAxes", "time") )
     END IF
 
     ! stepsize
@@ -644,6 +648,7 @@ END SUBROUTINE SetOutputNCDF
     CALL check( NF90_PUT_VAR( ncid, pressure_varid  , NCDF%pressure, start = (/NCDF%iTime/) ) )
     CALL check( NF90_PUT_VAR( ncid, z_parcel_varid  , NCDF%z       , start = (/NCDF%iTime/) ) )
     CALL check( NF90_PUT_VAR( ncid, RH_varid        , NCDF%RH      , start = (/NCDF%iTime/) ) )
+    CALL check( NF90_PUT_VAR( ncid, peakS_varid     , peak_S       , start = (/NCDF%iTime/) ) )
   END IF
 
   ! Write temperatue value

@@ -1267,7 +1267,7 @@ MODULE Chemsys_Mod
     !
     !
     CHARACTER(LenName) :: SpeciesName
-    INTEGER :: iPos, i
+    INTEGER :: iPos, i, ierr
     LOGICAL :: Back=.FALSE.
     REAL(dp) :: mm, alpha, dg, c1
     REAL(dp) :: nue
@@ -1324,8 +1324,8 @@ MODULE Chemsys_Mod
         iPos = PositionSpeciesAll(SpeciesName)
         IF ( iPos>0 ) THEN 
           IF (mm==-1.0e99_dp .OR. alpha==-1.0e99_dp) THEN
-            WRITE(*,*) 'Error in .dat-file: MolMass/alpha not given for '//TRIM(SpeciesName)
-            STOP 'Error occured.'
+            WRITE(*,*) 'Error in .dat-file: alpha or dg not given for '//TRIM(SpeciesName)
+            STOP
           END IF
           IF (iPos<=ns_GAS+ns_AQUA ) THEN
             iPos = iPos - ns_GAS
@@ -1340,15 +1340,10 @@ MODULE Chemsys_Mod
       CALL ClearIniFile
     END IF
 
-    ! --- require MolMass for every gaseous/aqueous species in the mechanism
-    DO i = 1, ns_GAS
-      IF (MolMass(i) == ZERO) WRITE(*,*) '  Missing MolMass in *.dat for: ', TRIM(ListGas2(i)%Species)
-    END DO
-    DO i = 1, ns_AQUA
-      IF (MolMass(ns_GAS+i) == ZERO) WRITE(*,*) '  Missing MolMass in *.dat for: ', TRIM(ListAqua2(i)%Species)
-    END DO
+    ! check if all molar masses etc. are given
     IF (ANY(MolMass==ZERO)) THEN
-      WRITE(*,*) 'Error: Not all molar masses given. Add entries to BEGIN_DATAGAS/BEGIN_DATAQUA in the *.dat-file.'
+      WRITE(*,*) 'Error: Not all molar masses given. Provide that and other values in the *.dat-file.&
+               & (Unfortunately, I do not know which are missing.)'
       STOP 'Error occured.'
     END IF
 
