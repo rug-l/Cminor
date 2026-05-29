@@ -53,7 +53,7 @@ LAPACK_LIB_DIR=/opt/homebrew/lib
 # Compiler settings
 #------------------------------------------------------------------------------
 FC=gfortran# Fortran compiler
-PYTHON ?= python3
+PYTHON ?= python
 # Free-form Fortran flags to handle line length
 FFLAGS_FREE = -ffree-form -ffixed-line-length-none -ffree-line-length-none
 
