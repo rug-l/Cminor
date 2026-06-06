@@ -1,0 +1,3 @@
+[submodule "EXTERNALS/cminor-issa"]
+	path = EXTERNALS/cminor-issa
+	url = git@github.com:KarlJohnsonnn/cminor-issa.git

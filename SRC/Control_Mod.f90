@@ -89,7 +89,9 @@
 &              , WaitBar            & ! ladebalken im terminal bei simulation (=1, default=0)
 &              , FluxDataPrint      & ! writing flux data and analyse after simulaiton -> print new reaction file
 &              , ConcDataPrint      & ! writing concentration data and analyse after simulaiton -> print new reaction file
-&              , Simulation           ! calculation of species concentration 
+&              , Simulation         & ! calculation of species concentration 
+&              , Reduction          & ! post-run ISSA mechanism reduction
+&              , Lumping              ! species lumping of chemical system
 
       INTEGER :: Error_Est         ! error estimation 1 = inf norm  , 2 = euklid norm
     

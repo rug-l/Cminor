@@ -27,7 +27,8 @@ MODULE InitRoutines_Mod
                            & phSet, pressure0, rlat, rlon, adiabatic_parcel, ZERO,      &
                            & rTolROW, Simulation, StpConc, StpFlux, StpNetCdf, Tspan,   &
                            & tBegin, tEnd, Temperature0, combustion, Tspan_tot,         &
-                           & activation_radius, DropletClassPrint, switch_updraft_velocity
+                           & activation_radius, DropletClassPrint, switch_updraft_velocity,&
+                           & Reduction
 
       USE Meteo_Mod,   ONLY: R, molw_air, qsatw, H2O, RefRH, N2, O2, RefM_dry, RefO2,   &
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
@@ -41,7 +42,8 @@ MODULE InitRoutines_Mod
       NAMELIST /SCENARIO/  LABEL ,     &
       &                    WaitBar , &
       &                    combustion , &
-      &                    Simulation
+      &                    Simulation , &
+      &                    Reduction
 
       NAMELIST /FILES/  SysFile ,    &
       &                 DataFile ,   &
@@ -110,6 +112,7 @@ MODULE InitRoutines_Mod
       WaitBar  = .TRUE.
       combustion = .FALSE.
       Simulation = .TRUE.
+      Reduction  = .FALSE.
 
 !--- Read SCENARIO namelist
       READ(RunUnit,SCENARIO,IOSTAT=io_stat,IOMSG=io_msg)

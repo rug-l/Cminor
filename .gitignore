@@ -19,6 +19,7 @@ MATRICES/*.SparseMat
 # executable files
 Cminor
 Cminor_dbg
+issa_reduce
 
 # ini, sys, run files
 RUN/TESTRUN/**/*.chem
