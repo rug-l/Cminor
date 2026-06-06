@@ -23,9 +23,12 @@ Cminor_dbg
 # ini, sys, run files
 RUN/TESTRUN/**/*.chem
 RUN/TESTRUN/**/*test.nc
+RUN/TESTRUN/diagnostics/
+RUN/TESTRUN/*.txt
 
 # python cache
 PYTHONSCRIPTS/__pycache__/
+PYTHONSCRIPTS/Figures/**/*.png
 
 # vim working files
 SRC/*.swp

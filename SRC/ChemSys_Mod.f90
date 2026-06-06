@@ -1291,8 +1291,8 @@ MODULE Chemsys_Mod
       IF ( iPos > 0) THEN
         IF (iPos<=ns_GAS+ns_AQUA ) MolMass(iPos) = mm
         IF (mm==-1.0e99_dp .OR. alpha==-1.0e99_dp .OR. dg==-1.0e99_dp) THEN
-          WRITE(*,*) 'Error in .dat-file: alpha or dg not given for '//TRIM(SpeciesName)
-          STOP
+          WRITE(*,*) 'Error in .dat-file: MolMass/alpha/dg not given for '//TRIM(SpeciesName)
+          STOP 'Error occured.'
         END IF
         IF (alpha==ZERO .AND. dg==ZERO) CYCLE GAS 
         !

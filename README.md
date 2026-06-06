@@ -30,12 +30,55 @@ Cminor can be run in one of three configurations:
    make
    ```
 
-4. Run the test suite:
+4. Install Python dependencies for regression tests:
    ```bash
-   make test
+   pip install -r requirements.txt
    ```
 
-5. Execute a specific mechanism:
+5. Run the test suites:
+   ```bash
+   make test             # smoke tests (legacy behavior)
+   make test-regression  # NetCDF regression checks
+   make test-diagnosis   # NetCDF regression + diagnostic PNGs
+   ```
+
+   Optional environment flags for regression runner:
+   ```bash
+   CMINOR_TEST_PROFILE=quick make test-regression      # faster subset
+   CMINOR_FAIL_ON_WARNING=1 make test-regression       # fail on large relative error warnings
+   ```
+
+   Example: generate a diagnostic PNG for one mechanism:
+   ```bash
+   python PYTHONSCRIPTS/plot_test_diagnosis.py \
+     --test RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_test.nc \
+     --ref RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_reference.nc \
+     --mode comb \
+     --label LLNL_nHeptane \
+     --out RUN/TESTRUN/diagnostics/LLNL_nHeptane_diagnostic.png
+   ```
+
+   Diagnostic figures are written to:
+   ```bash
+   RUN/TESTRUN/diagnostics/
+   ```
+
+6. Execute a specific mechanism:
    ```bash
    ./Cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
    ```
+
+## Continuous integration
+
+GitHub Actions (`.github/workflows/ci.yml`) builds `Cminor` on Ubuntu and macOS, then runs `make test-regression` with `CMINOR_TEST_PROFILE=quick`.
+
+Override NetCDF paths without editing the Makefile (as CI does):
+
+```bash
+export NETCDF_DIR=/usr
+export NETCDF_C_DIR=/usr
+export HDF5_DIR=/usr
+make Cminor
+```
+
+On macOS runners, Homebrew `gcc` supplies `gfortran-*`; CI sets `FC` accordingly. The project still uses the Makefile as the canonical build; [fpm](https://github.com/fortran-lang/fpm) is optional for local workflows (`brew install fpm`) but not required for CI.

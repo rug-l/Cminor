@@ -9,6 +9,10 @@ MODULE IO_Mod
   !
   CONTAINS
   SUBROUTINE Logo()
+    INTEGER :: date_time(8)
+    CHARACTER(len=4) :: year_str
+    CALL date_and_time(values=date_time)
+    WRITE(year_str, '(I4.4)') date_time(1)
     WRITE(*,*) 
     WRITE(*,777) ! in Georgi16
     WRITE(*,777) "***************************************************************"
@@ -27,7 +31,7 @@ MODULE IO_Mod
     WRITE(*,777) "***************************************************************"
     WRITE(*,*) 
     WRITE(*,777) "               The Chemical Mechanism Integrator               " 
-    WRITE(*,777) "         Copyright (C) 2025 Levin Rug, Willi Schimmel          "
+    WRITE(*,777) "         Copyright (C) 2017-"//trim(year_str)//" Levin Rug, Willi Schimmel          "
     WRITE(*,*) 
     WRITE(*,777) "        This program comes with ABSOLUTELY NO WARRANTY,        "
     WRITE(*,777) "  it is free software, and you are welcome to redistribute it  "

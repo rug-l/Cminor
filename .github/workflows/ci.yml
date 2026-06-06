@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master", "chore/**", "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran libnetcdf-dev libnetcdff-dev libhdf5-dev \
+            libhdf5-serial-dev libopenblas-dev liblapack-dev libcurl4-openssl-dev pkg-config
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install gcc netcdf-fortran netcdf hdf5
+
+      - name: Set macOS build environment
+        if: runner.os == 'macOS'
+        run: |
+          echo "$(brew --prefix gcc)/bin" >> "$GITHUB_PATH"
+          echo "FC=$(brew --prefix gcc)/bin/gfortran" >> "$GITHUB_ENV"
+          echo "NETCDF_DIR=$(brew --prefix netcdf-fortran)" >> "$GITHUB_ENV"
+          echo "NETCDF_C_DIR=$(brew --prefix netcdf)" >> "$GITHUB_ENV"
+          echo "HDF5_DIR=$(brew --prefix hdf5)" >> "$GITHUB_ENV"
+
+      - name: Set Linux build environment
+        if: runner.os == 'Linux'
+        run: |
+          echo "NETCDF_DIR=/usr" >> "$GITHUB_ENV"
+          echo "NETCDF_C_DIR=/usr" >> "$GITHUB_ENV"
+          echo "HDF5_DIR=/usr" >> "$GITHUB_ENV"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Cminor
+        run: |
+          if [ -n "${FC:-}" ]; then
+            make Cminor FC="${FC}"
+          else
+            make Cminor
+          fi
+
+      - name: Run quick regression suite
+        env:
+          PYTHON: python
+          CMINOR_TEST_PROFILE: quick
+        run: make test-regression
+
+      - name: Generate diagnostic plots on failure
+        if: failure()
+        env:
+          PYTHON: python
+        run: |
+          mkdir -p RUN/TESTRUN/diagnostics
+          python PYTHONSCRIPTS/plot_test_diagnosis.py \
+            --test RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_test.nc \
+            --ref RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP_reference.nc \
+            --mode atm --label SmallStratoKPP \
+            --out RUN/TESTRUN/diagnostics/SmallStratoKPP_diagnostic.png || true
+          python PYTHONSCRIPTS/plot_test_diagnosis.py \
+            --test RUN/TESTRUN/MCM/MCM_test.nc \
+            --ref RUN/TESTRUN/MCM/MCM_reference.nc \
+            --mode atm --label MCM \
+            --out RUN/TESTRUN/diagnostics/MCM_diagnostic.png || true
+          python PYTHONSCRIPTS/plot_test_diagnosis.py \
+            --test RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_test.nc \
+            --ref RUN/TESTRUN/LLNL_nHeptane/LLNL_nHeptane_reference.nc \
+            --mode comb --label LLNL_nHeptane \
+            --out RUN/TESTRUN/diagnostics/LLNL_nHeptane_diagnostic.png || true
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cminor-test-artifacts-${{ matrix.os }}
+          path: |
+            RUN/TESTRUN/log_during_tests.txt
+            RUN/TESTRUN/output_during_tests.txt
+            RUN/TESTRUN/diagnostics/*.png
+          if-no-files-found: ignore
