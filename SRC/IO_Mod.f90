@@ -31,7 +31,7 @@ MODULE IO_Mod
     WRITE(*,777) "***************************************************************"
     WRITE(*,*) 
     WRITE(*,777) "               The Chemical Mechanism Integrator               " 
-    WRITE(*,777) "         Copyright (C) 201-"//trim(year_str)//" Levin Rug, Willi Schimmel          "
+    WRITE(*,777) "         Copyright (C) 2017-"//trim(year_str)//" Levin Rug, Willi Schimmel          "
     WRITE(*,*) 
     WRITE(*,777) "        This program comes with ABSOLUTELY NO WARRANTY,        "
     WRITE(*,777) "  it is free software, and you are welcome to redistribute it  "
