@@ -165,10 +165,8 @@ $(LIB_DBG_DIR)/%.o: $(SRC_DIR)/%.f90 | $(LIB_DBG_DIR)
 #------------------------------------------------------------------------------
 # Test and cleanup targets
 #------------------------------------------------------------------------------
-# Run smoke test suite (legacy behavior)
-test: test-smoke
-
-test-smoke: Cminor
+# Run test suite
+test: Cminor
 	./Cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
 	./Cminor RUN/TESTRUN/RACM_ML/RACM_ML.run
 	./Cminor RUN/TESTRUN/MCM/MCM.run
@@ -212,4 +210,4 @@ clean:
 	rm -f Cminor Cminor_dbg
 
 # Declare phony targets (targets that don't create files)
-.PHONY: all clean test test-smoke test-regression test-diagnosis
+.PHONY: all clean test test-regression test-diagnosis
