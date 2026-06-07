@@ -28,7 +28,7 @@ MODULE InitRoutines_Mod
                            & rTolROW, Simulation, StpConc, StpFlux, StpNetCdf, Tspan,   &
                            & tBegin, tEnd, Temperature0, combustion, Tspan_tot,         &
                            & activation_radius, DropletClassPrint, switch_updraft_velocity,&
-                           & Reduction
+                           & Reduction, RedCtrlFile
 
       USE Meteo_Mod,   ONLY: R, molw_air, qsatw, H2O, RefRH, N2, O2, RefM_dry, RefO2,   &
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
@@ -49,7 +49,8 @@ MODULE InitRoutines_Mod
       &                 DataFile ,   &
       &                 InitFile ,   &
       &                 MWFile ,     &
-      &                 DatPolicy
+      &                 DatPolicy ,  &
+      &                 RedCtrlFile
 
       NAMELIST /TIMES/  tBegin, tEnd
 
@@ -129,6 +130,7 @@ MODULE InitRoutines_Mod
       CALL FileNameCheck(SysFile,'SysFile')
       CALL FileNameCheck(DataFile,'DataFile')
       CALL FileNameCheck(InitFile,'InitFile')
+      IF ( Reduction ) CALL FileNameCheck(RedCtrlFile,'RedCtrlFile')
       ChemFile   = ADJUSTL(SysFile(:INDEX(SysFile,'.sys')-1)//'.chem')
       MWFile     = ADJUSTL(MWFile)
       DatPolicy  = ADJUSTL(DatPolicy)

@@ -30,7 +30,8 @@
 &                    , DatPolicy    = 'warn'      & ! 'stop' or 'warn' for missing .dat species data
 &                    , MWFile       = ''          & ! molecular weights of species 
 &                    , NetcdfFile   = ''          & ! NetCDF output file
-&                    , ODEsolver    = ''            ! Method for Rosenbrock Integration
+&                    , ODEsolver    = ''          & ! Method for Rosenbrock Integration
+&                    , RedCtrlFile  = ''            ! Reduction control file
 
       CHARACTER(80) :: FluxMetaFile = ''         ! meta data for unformatted flux data
       CHARACTER(80) :: FluxFile     = ''         ! flux data (unformatted)

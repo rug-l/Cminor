@@ -8,6 +8,7 @@
   SysFile    = 'RUN/TESTRUN/RACM+CAPRAM/RACM+C24.sys'      ! .sys Datei (ohne .sys angeben!)
   DataFile   = 'RUN/TESTRUN/DAT/Urban.dat'          ! .dat Datei (für RO2, RO2aqua Summen)
   InitFile   = 'RUN/TESTRUN/INI/Urban2.ini'          ! .ini Datei (Anfangswerte gas/flüssig), Diagnose spc
+  RedCtrlFile = 'EXTERNALS/cminor-issa/CONFIG/ISSA/RACM+C24.ctrl'
   DatPolicy  = 'warn'    ! warns when missing species in .dat file
 /END
 &TIMES
