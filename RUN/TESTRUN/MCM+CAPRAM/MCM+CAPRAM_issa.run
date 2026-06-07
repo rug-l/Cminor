@@ -8,6 +8,7 @@
   SysFile  = 'RUN/TESTRUN/MCM+CAPRAM/MCM32_CAPRAM40_full.sys'  
   DataFile = 'RUN/TESTRUN/DAT/MCM32_CAPRAM40_full.dat'
   InitFile = 'RUN/TESTRUN/INI/Urban2.ini'
+  DatPolicy  = 'warn'    ! warns when missing species in .dat file
 /END
 &TIMES
   tBegin      = 0.0d0
