@@ -27,6 +27,7 @@
 &                    , ChemFile     = ''          & ! Chemical mechanism in .chem format
 &                    , InitFile     = ''          & ! Initial concentrations
 &                    , DataFile     = ''          & ! Gas and Aqueous data
+&                    , DatPolicy    = 'warn'      & ! 'stop' or 'warn' for missing .dat species data
 &                    , MWFile       = ''          & ! molecular weights of species 
 &                    , NetcdfFile   = ''          & ! NetCDF output file
 &                    , ODEsolver    = ''            ! Method for Rosenbrock Integration

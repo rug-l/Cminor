@@ -39,7 +39,7 @@ MODULE Chemsys_Mod
                              & tEnd, HOUR, hourday, iDate, rlat, rlon, rho_parcel, TWO,   &
                              & phSet, nD_Ptr_spc, nD_Ptr_KAT, nD_Ptr_reacs, nNcdfEmiss,   &
                              & activation_radius, rTHREE, LWCLevelmin, LWCLevelmax,       &
-                             & adiabatic_parcel, DropletClassPrint
+                             & adiabatic_parcel, DropletClassPrint, DatPolicy
    
   USE Reac_Mod           ! ONLY: nearly all of reac_mod.. 
    
@@ -1258,7 +1258,115 @@ MODULE Chemsys_Mod
       END IF
     END IF
 
+    CALL Check_MissingDatSpecies(DataFileName)
+
   END SUBROUTINE InputChemicalData
+
+
+  SUBROUTINE Check_MissingDatSpecies(DataFileName)
+    CHARACTER(*) :: DataFileName
+    !
+    INTEGER :: i, iFrac, j, n_miss_gas, n_miss_aqua, n_miss, n_print, n_afrac_miss
+    INTEGER, PARAMETER :: max_print = 20
+
+    IF ( .NOT. ANY(MolMass==ZERO) ) RETURN
+
+    n_miss_gas  = COUNT( MolMass(1:ns_GAS)==ZERO )
+    n_miss_aqua = 0
+    IF ( ns_AQUA>0 ) n_miss_aqua = COUNT( MolMass(ns_GAS+1:ns_GAS+ns_AQUA)==ZERO )
+    n_miss = n_miss_gas + n_miss_aqua
+
+    IF ( DatPolicy=='stop' ) THEN
+      WRITE(*,*)
+      WRITE(*,*) 'ERROR: Missing species data in ', TRIM(DataFileName)
+      WRITE(*,*) '       DatPolicy = stop'
+    ELSE
+      WRITE(*,*)
+      WRITE(*,*) 'WARNING: Missing species data in ', TRIM(DataFileName)
+      WRITE(*,*) '         DatPolicy = warn — simulation will continue.'
+    END IF
+    WRITE(*,*)
+    WRITE(*,'(A,I0,A)') '  Missing molar mass (', n_miss, ' total):'
+
+    IF ( n_miss_gas>0 ) THEN
+      WRITE(*,'(A,I0,A)') '    GAS  (', n_miss_gas, '):'
+      n_print = 0
+      DO i = 1 , ns_GAS
+        IF ( MolMass(i)==ZERO ) THEN
+          n_print = n_print + 1
+          IF ( n_print<=max_print ) WRITE(*,'(A,A)') '      ', TRIM(ListGas2(i)%Species)
+        END IF
+      END DO
+      IF ( n_miss_gas>max_print ) WRITE(*,'(A,I0,A)') '      ... and ', n_miss_gas-max_print, ' more gas species.'
+    END IF
+
+    IF ( n_miss_aqua>0 ) THEN
+      WRITE(*,'(A,I0,A)') '    AQUA (', n_miss_aqua, '):'
+      n_print = 0
+      DO i = 1 , ns_AQUA
+        IF ( MolMass(i+ns_GAS)==ZERO ) THEN
+          n_print = n_print + 1
+          IF ( n_print<=max_print ) WRITE(*,'(A,A)') '      ', TRIM(ListAqua2(i)%Species)
+        END IF
+      END DO
+      IF ( n_miss_aqua>max_print ) WRITE(*,'(A,I0,A)') '      ... and ', n_miss_aqua-max_print, ' more aqueous species.'
+    END IF
+
+    WRITE(*,*)
+    WRITE(*,*) '  Add entries to BEGIN_DATAGAS / BEGIN_DATAQUA in the .dat file.'
+    WRITE(*,*) '  Values (MolMass, Alpha, Dg for gas; MolMass, Charge, SolubInd, ... for aqua)'
+    WRITE(*,*) '  are mechanism-specific — consult CAPRAM/RACM/MCM documentation or'
+    WRITE(*,*) '  existing .dat files (e.g. RACM.dat) for analogous species.'
+
+    WRITE(*,*)
+    WRITE(*,*) '  Possible effects:'
+    WRITE(*,*) '    Species with MolMass=0 are excluded from correct g/mol conversions.'
+    IF ( ns_AQUA>0 ) THEN
+      WRITE(*,*) '    DissolvedMass and dryRadius NetCDF outputs may be wrong (MolMass=0).'
+    END IF
+    IF ( ns_AQUA==0 .AND. n_miss_gas>0 ) THEN
+      WRITE(*,*) '    Gas-phase integration is likely unaffected; mass-weighted output unavailable'
+      WRITE(*,*) '    for missing species.'
+    END IF
+    IF ( adiabatic_parcel .AND. n_miss>0 ) THEN
+      WRITE(*,*) '    Adiabatic parcel aerosol mass initialization may be wrong for affected species.'
+    END IF
+
+    n_afrac_miss = 0
+    IF ( ns_AQUA>0 .AND. nFrac>0 ) THEN
+      DO iFrac = 1 , nFrac
+        DO j = 1 , SIZE(AFrac(iFrac)%Species)
+          IF ( MolMass(AFrac(iFrac)%iSpecies(j))==ZERO ) n_afrac_miss = n_afrac_miss + 1
+        END DO
+      END DO
+      IF ( n_afrac_miss>0 ) THEN
+        WRITE(*,*) '    Aerosol fraction species with missing MolMass: droplet init / dryRadius affected.'
+        n_print = 0
+        DO iFrac = 1 , nFrac
+          DO j = 1 , SIZE(AFrac(iFrac)%Species)
+            IF ( MolMass(AFrac(iFrac)%iSpecies(j))==ZERO ) THEN
+              n_print = n_print + 1
+              IF ( n_print<=max_print ) WRITE(*,'(A,A)') '      ', TRIM(AFrac(iFrac)%Species(j))
+            END IF
+          END DO
+        END DO
+        IF ( n_afrac_miss>max_print ) WRITE(*,'(A,I0,A)') '      ... and ', n_afrac_miss-max_print, ' more aerosol fraction species.'
+      END IF
+    END IF
+
+    IF ( DatPolicy=='warn' ) THEN
+      WRITE(*,*)
+      WRITE(*,*) '  Recommend: complete the .dat file and rerun with DatPolicy = stop.'
+      WRITE(*,*)
+    ELSE
+      WRITE(*,*)
+      WRITE(*,*) '  Set DatPolicy = warn in the .run file only if you accept incorrect'
+      WRITE(*,*) '  mass-related diagnostics.'
+      WRITE(*,*)
+      STOP 'Missing species data in .dat file.'
+    END IF
+
+  END SUBROUTINE Check_MissingDatSpecies
 
 
   SUBROUTINE Read_SpeciesData(y_diff,y_acc,FileName)
@@ -1338,13 +1446,6 @@ MODULE Chemsys_Mod
       END DO AQUA
       CALL RewindFile
       CALL ClearIniFile
-    END IF
-
-    ! check if all molar masses etc. are given
-    IF (ANY(MolMass==ZERO)) THEN
-      WRITE(*,*) 'Error: Not all molar masses given. Provide that and other values in the *.dat-file.&
-               & (Unfortunately, I do not know which are missing.)'
-      STOP 'Error occured.'
     END IF
 
     !

@@ -7,6 +7,7 @@
   SysFile  = 'RUN/TESTRUN/MCM+CAPRAM/MCM32_CAPRAM40_full.sys'  
   DataFile = 'RUN/TESTRUN/DAT/MCM32_CAPRAM40_full.dat'
   InitFile = 'RUN/TESTRUN/INI/urbMCM+C30m_2.ini'
+  DatPolicy  = 'warn'    ! default is 'warn'
 /END
 &TIMES
   tBegin      = 0.0d0

@@ -18,7 +18,7 @@ MODULE InitRoutines_Mod
 !==================================================
       USE Control_Mod, ONLY: RunFile, RunUnit, SysFile, ATolGas, ATolAqua, ATolTemp,    &
                            & LABEL, ChemFile, ConcDataPrint, ConstLWC, T_parcel, milli, &
-                           & DataFile, Dust, Atolq, AtolRho, Atolz, AtolWaterMass,      &
+                           & DataFile, DatPolicy, Dust, Atolq, AtolRho, Atolz, AtolWaterMass,      &
                            & error_est, FluxDataPrint, iDate, rho_parcel, rho_parcel0,  &
                            & InitFile, LWCConst, updraft_velocity, q_parcel, V_parcel0, &
                            & LWCLevelMin, LWCLevelMax, MatrixPrint, MaxStp, WaitBar,    &
@@ -34,7 +34,7 @@ MODULE InitRoutines_Mod
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
                            & mol2part, RefN2, SI_Gas, alpha_H2O, beta_H2O, peak_S
 
-      INTEGER        :: io_stat
+      INTEGER        :: io_stat, i
       CHARACTER(400) :: io_msg = ''
 
 !-----------------------------------------------------------------
@@ -48,7 +48,8 @@ MODULE InitRoutines_Mod
       NAMELIST /FILES/  SysFile ,    &
       &                 DataFile ,   &
       &                 InitFile ,   &
-      &                 MWFile
+      &                 MWFile ,     &
+      &                 DatPolicy
 
       NAMELIST /TIMES/  tBegin, tEnd
 
@@ -130,6 +131,17 @@ MODULE InitRoutines_Mod
       CALL FileNameCheck(InitFile,'InitFile')
       ChemFile   = ADJUSTL(SysFile(:INDEX(SysFile,'.sys')-1)//'.chem')
       MWFile     = ADJUSTL(MWFile)
+      DatPolicy  = ADJUSTL(DatPolicy)
+      DO i = 1 , LEN_TRIM(DatPolicy)
+        ! Fold to lowercase so DatPolicy comparisons are case-insensitive (e.g. STOP -> stop).
+        IF ( DatPolicy(i:i)>='A' .AND. DatPolicy(i:i)<='Z' ) THEN
+          DatPolicy(i:i) = CHAR( ICHAR(DatPolicy(i:i)) + 32 )
+        END IF
+      END DO
+      IF ( DatPolicy/='stop' .AND. DatPolicy/='warn' ) THEN
+        WRITE(*,*) "  DatPolicy must be 'stop' or 'warn'. Got: ", TRIM(DatPolicy)
+        STOP
+      END IF
 
       IF ( TRIM(LABEL) == '' ) THEN
         LABEL = ADJUSTL(SysFile(INDEX(SysFile,'/')+1:INDEX(SysFile,'.sys')-1))
