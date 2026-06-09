@@ -257,5 +257,14 @@ clean:
 	rm -f $(LIB_DBG_DIR)/*.o $(LIB_DBG_DIR)/*.mod $(LIB_DBG_DIR)/*.a
 	rm -f Cminor Cminor_dbg issa_reduce
 
+# Compare full vs ISSA-reduced NetCDF (requires both NC files from prior Cminor runs)
+issa-verify:
+	mkdir -p RUN/TESTRUN/diagnostics
+	$(PYTHON) PYTHONSCRIPTS/compare_issa_verification.py \
+		--full-run    RUN/TESTRUN/MCM+CAPRAM/MCM+CAPRAM_issa.run \
+		--reduced-run RUN/TESTRUN/MCM+CAPRAM/MCM+CAPRAM_issa_reduced.run \
+		--label       MCM32_CAPRAM40_issa \
+		--out-dir     RUN/TESTRUN/diagnostics
+
 # Declare phony targets (targets that don't create files)
-.PHONY: all clean test test-regression test-diagnosis issa_reduce
+.PHONY: all clean test test-regression test-diagnosis issa_reduce issa-verify
