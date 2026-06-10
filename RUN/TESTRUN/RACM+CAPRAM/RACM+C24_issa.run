@@ -1,0 +1,45 @@
+&SCENARIO
+  Label      = 'RACM+C24'
+  WaitBar    = .T.          ! .F. = kein ladebalken, .T. /= ladebalken aktiv
+  Simulation = .T.          ! perform the numerical simulation
+  Reduction  = .T.          ! perform the reduction of the chemical system
+/END
+&FILES
+  SysFile    = 'RUN/TESTRUN/RACM+CAPRAM/RACM+C24.sys'      ! .sys Datei (ohne .sys angeben!)
+  DataFile   = 'RUN/TESTRUN/DAT/Urban.dat'          ! .dat Datei (für RO2, RO2aqua Summen)
+  InitFile   = 'RUN/TESTRUN/INI/Urban2.ini'          ! .ini Datei (Anfangswerte gas/flüssig), Diagnose spc
+  RedCtrlFile = 'EXTERNALS/cminor-issa/CONFIG/ISSA/RACM+C24.ctrl'
+  DatPolicy  = 'warn'    ! warns when missing species in .dat file
+/END
+&TIMES
+  tBegin      = 0.0d0          ! Startzeit Integration   (in [sec])
+  tEnd        = 86400.0d0      ! Endzeit   Integration   (in [sec])
+  !tEnd        = 172800.0d0      ! Endzeit   Integration   (in [sec])
+/END
+&METEO
+  pHSet       = .T.          ! Berechne pH Wert zu Beginn
+  LWCLevelmax = 2.0d-8       ! minimaler LWC Wert [l/cm3]
+  LWCLevelmin = 3.0d-4       ! maximaler LWC Wert [l/cm3]
+  Dust        = 1.0d0        ! Zenith Berechnung       (Staub)
+  idate       = 010621       ! ---------''---------    (Datum: YYMMDD)
+  rlat        = 45.0d0       ! ---------''---------    (Breitengrad)
+  rlon        = 0.0d0        ! ---------''---------    (Längengrad)
+  Temperature0= 280.0d0
+/END
+&NUMERICS
+  RtolROW     = 1.0d-3       ! rel. Toleranz für Rosenbrock-Wanner Fehlersteuerung
+  AtolGas     = 1.0d-5       ! abs. Toleranzen für gasförmige Stoffe 
+  AtolAqua    = 1.0d-5       ! abs. Toleranzen für aquatische Stoffe
+  Error_Est   = 2            ! Error estimation = 2 -> 2-norm, else maxnorm
+  minStp      = 1.0d-30      ! minimale Schrittweite für Integration
+  maxStp      = 50.0d0       ! maximale Schrittweite für Integration
+  ODEsolver   = 'METHODS/Rodas3.ros'  ! Rosenbrock-Wanner Verfahrenskoeffizienten
+  !ODEsolver   = 'METHODS/Ros3Pw.ros'  ! Rosenbrock-Wanner Verfahrenskoeffizienten
+/END
+&OUTPUT
+  NetCdfFile  = 'RUN/TESTRUN/RACM+CAPRAM/RACM+C24_issa.nc' ! location and name of NetCDF output file
+  StpNetCDF   = 600.0d0              ! save after StpNetCDF seconds, if < 0.0 :  save every timestep 
+  StpFlux     = 300.0d0
+  MatrixPrint = .F.                ! .TRUE. == print matricies , .FALSE. == do not print any matrix
+  FluxDataPrint = .T.          ! Writing rate fluxes to file
+/END

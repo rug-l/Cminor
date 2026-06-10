@@ -19,10 +19,13 @@ MATRICES/*.SparseMat
 # executable files
 Cminor
 Cminor_dbg
+issa_reduce
 
 # ini, sys, run files
 RUN/TESTRUN/**/*.chem
 RUN/TESTRUN/**/*test.nc
+RUN/TESTRUN/**/*_issa.nc
+RUN/TESTRUN/**/*_red.sys
 RUN/TESTRUN/diagnostics/
 RUN/TESTRUN/*.txt
 
@@ -32,3 +35,4 @@ PYTHONSCRIPTS/Figures/**/*.png
 
 # vim working files
 SRC/*.swp
+OUTPUT/*

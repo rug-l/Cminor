@@ -60,7 +60,11 @@ PROGRAM Cminor
                             & FluxFile, FluxMetaFile, FluxDataPrint, z_parcel, rho_parcel,      &
                             & DataUnit, DataFile, ConcUnit, ConcFile, TimerNetCDF, Timer_Read,  &
                             & ConcMetaUnit, ConcMetaFile, ConcDataPrint, ChemUnit, AtolTemp,    &
-                            & AtolAqua, ChemFile, Time_Finish, Time_Read, TimerSymbolic, RH
+                            & AtolAqua, ChemFile, Time_Finish, Time_Read, TimerSymbolic, RH,    &
+                            & Reduction
+#ifdef ISSA
+  USE ISSA_Reduce_Mod, ONLY: RunISSAReduction
+#endif
 
   USE Reac_Mod,         ONLY: InitValAct, y_name, bGs, y_emi, y_depos, iAs2, iGs2, nDIM2, rho,  &
                             & bHr, rnspc, bAs2, SwitchTemp, rRho, MW, rMW, PHOTO, ddelGFEdT,    &
@@ -576,6 +580,10 @@ PROGRAM Cminor
     CALL End_Timer(Timer_Finish, Time_Finish)
 
     CALL Output_Statistics
+
+#ifdef ISSA
+    IF ( Reduction ) CALL RunISSAReduction()
+#endif
 
   END IF
   

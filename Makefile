@@ -78,8 +78,8 @@ FFLAGS_DBG = -J$(LIB_DBG_DIR) -g -C -O0 -Warray-bounds -Wextra -fbacktrace \
              -Wno-uninitialized -Wno-compare-reals
 
 # Add include path to compiler flags
-FFLAGS_OPT += -I$(METHODS_DIR) -I.
-FFLAGS_DBG += -I$(METHODS_DIR) -I.
+FFLAGS_OPT += -I$(METHODS_DIR) -I. -cpp
+FFLAGS_DBG += -I$(METHODS_DIR) -I. -cpp
 
 #------------------------------------------------------------------------------
 # Include paths for header files and modules
@@ -115,6 +115,24 @@ LIBS = -Wl,-rpath,$(NETCDF_DIR)/lib,-rpath,$(NETCDF_C_DIR)/lib,-rpath,$(HDF5_DIR
 endif
 
 #------------------------------------------------------------------------------
+# Optional ISSA reduction (private submodule / local scaffold)
+#------------------------------------------------------------------------------
+ISSA_DIR = EXTERNALS/cminor-issa/SRC
+ISSA_SRCS = $(ISSA_DIR)/issa_flux_io.f90 \
+            $(ISSA_DIR)/issa_graph_tools.f90 \
+            $(ISSA_DIR)/issa_reduce.f90
+ISSA_PRESENT := $(wildcard $(ISSA_DIR)/issa_reduce.f90)
+ifneq ($(ISSA_PRESENT),)
+  FFLAGS_OPT += -DISSA
+  FFLAGS_DBG += -DISSA
+  ISSA_OBJS_OPT = $(LIB_DIR)/issa_flux_io.o $(LIB_DIR)/issa_graph_tools.o $(LIB_DIR)/issa_reduce.o
+  ISSA_OBJS_DBG = $(LIB_DBG_DIR)/issa_flux_io.o $(LIB_DBG_DIR)/issa_graph_tools.o $(LIB_DBG_DIR)/issa_reduce.o
+else
+  ISSA_OBJS_OPT =
+  ISSA_OBJS_DBG =
+endif
+
+#------------------------------------------------------------------------------
 # Source files - all Fortran 90 files that make up the project
 #------------------------------------------------------------------------------
 SRCS = $(addprefix $(SRC_DIR)/, \
@@ -125,11 +143,12 @@ SRCS = $(addprefix $(SRC_DIR)/, \
 	fparser.f90 Rates_Mod.f90 Rosenbrock_Mod.f90 Integration_Mod.f90 \
 	Cminor.f90)
 
-#------------------------------------------------------------------------------
-# Object files - automatically generated from source files
-#------------------------------------------------------------------------------
-OBJS_OPT = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DIR)/%.o,$(SRCS))
-OBJS_DBG = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DBG_DIR)/%.o,$(SRCS))
+BASE_OBJS_OPT = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DIR)/%.o,$(SRCS))
+BASE_OBJS_DBG = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DBG_DIR)/%.o,$(SRCS))
+
+# Insert ISSA objects after Integration_Mod.o, before Cminor.o
+OBJS_OPT = $(filter-out $(LIB_DIR)/Cminor.o,$(BASE_OBJS_OPT)) $(ISSA_OBJS_OPT) $(LIB_DIR)/Cminor.o
+OBJS_DBG = $(filter-out $(LIB_DBG_DIR)/Cminor.o,$(BASE_OBJS_DBG)) $(ISSA_OBJS_DBG) $(LIB_DBG_DIR)/Cminor.o
 
 #------------------------------------------------------------------------------
 # Build targets
@@ -162,10 +181,39 @@ $(LIB_DIR)/%.o: $(SRC_DIR)/%.f90 | $(LIB_DIR)
 $(LIB_DBG_DIR)/%.o: $(SRC_DIR)/%.f90 | $(LIB_DBG_DIR)
 	$(FC) $(FFLAGS_FREE) $(FFLAGS_DBG) $(INCLUDES_DBG) -c $< -o $@
 
+ifneq ($(ISSA_PRESENT),)
+$(LIB_DIR)/issa_flux_io.o: $(ISSA_DIR)/issa_flux_io.f90 | $(LIB_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_OPT) $(INCLUDES_OPT) -c $< -o $@
+
+$(LIB_DIR)/issa_graph_tools.o: $(ISSA_DIR)/issa_graph_tools.f90 $(LIB_DIR)/issa_flux_io.o | $(LIB_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_OPT) $(INCLUDES_OPT) -c $< -o $@
+
+$(LIB_DIR)/issa_reduce.o: $(ISSA_DIR)/issa_reduce.f90 $(LIB_DIR)/issa_graph_tools.o | $(LIB_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_OPT) $(INCLUDES_OPT) -c $< -o $@
+
+$(LIB_DBG_DIR)/issa_flux_io.o: $(ISSA_DIR)/issa_flux_io.f90 | $(LIB_DBG_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_DBG) $(INCLUDES_DBG) -c $< -o $@
+
+$(LIB_DBG_DIR)/issa_graph_tools.o: $(ISSA_DIR)/issa_graph_tools.f90 $(LIB_DBG_DIR)/issa_flux_io.o | $(LIB_DBG_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_DBG) $(INCLUDES_DBG) -c $< -o $@
+
+$(LIB_DBG_DIR)/issa_reduce.o: $(ISSA_DIR)/issa_reduce.f90 $(LIB_DBG_DIR)/issa_graph_tools.o | $(LIB_DBG_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_DBG) $(INCLUDES_DBG) -c $< -o $@
+
+$(LIB_DIR)/issa_reduce_main.o: EXTERNALS/cminor-issa/issa_reduce_main.f90 $(LIB_DIR)/issa_reduce.o | $(LIB_DIR)
+	$(FC) $(FFLAGS_FREE) $(FFLAGS_OPT) $(INCLUDES_OPT) -c $< -o $@
+
+ISSA_REDUCE_SKIP = $(LIB_DIR)/Cminor.o $(LIB_DIR)/Integration_Mod.o $(LIB_DIR)/Rosenbrock_Mod.o \
+                   $(LIB_DIR)/NetCDF_Mod.o $(LIB_DIR)/Rates_Mod.o $(LIB_DIR)/ChemKinInput_Mod.o
+ISSA_REDUCE_OBJS = $(filter-out $(ISSA_REDUCE_SKIP),$(BASE_OBJS_OPT)) $(ISSA_OBJS_OPT) $(LIB_DIR)/issa_reduce_main.o
+
+issa_reduce: $(ISSA_REDUCE_OBJS)
+	$(FC) $(FFLAGS_OPT) $(INCLUDES_OPT) -o $@ $^ $(LIBS)
+endif
+
 #------------------------------------------------------------------------------
 # Test and cleanup targets
 #------------------------------------------------------------------------------
-# Run test suite
 test: Cminor
 	./Cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
 	./Cminor RUN/TESTRUN/RACM_ML/RACM_ML.run
@@ -207,7 +255,7 @@ test-diagnosis: test-regression
 clean:
 	rm -f $(LIB_DIR)/*.o $(LIB_DIR)/*.mod $(LIB_DIR)/*.a
 	rm -f $(LIB_DBG_DIR)/*.o $(LIB_DBG_DIR)/*.mod $(LIB_DBG_DIR)/*.a
-	rm -f Cminor Cminor_dbg
+	rm -f Cminor Cminor_dbg issa_reduce
 
 # Declare phony targets (targets that don't create files)
-.PHONY: all clean test test-regression test-diagnosis
+.PHONY: all clean test test-regression test-diagnosis issa_reduce
