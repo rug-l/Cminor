@@ -2,7 +2,7 @@
   Label    = 'MCM32+CAPRAM40'
   WaitBar  = .T.
   Simulation = .T.
-  Reduction  = .T.
+  Reduction  = .F.
 /END
 &FILES
   SysFile  = 'RUN/TESTRUN/MCM+CAPRAM/MCM32_CAPRAM40_full.sys'  
@@ -27,8 +27,8 @@
 /END
 &NUMERICS
   RtolROW  = 1.0d-4
-  AtolGas  = 1.0d-7
-  AtolAqua = 1.0d-7
+  AtolGas  = 1.0d-5
+  AtolAqua = 1.0d-5
   Error_Est = 2
   minStp  = 1.0d-30
   maxStp  = -1.0d0
@@ -36,8 +36,8 @@
 /END
 &OUTPUT
   NetCdfFile  = 'RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_issa.nc' ! location and name of NetCDF output file
-  StpNetCDF   = 300.0d0              ! save after StpNetCDF seconds, if < 0.0 :  save every timestep
-  StpFlux     = 600.0d0
+  StpNetCDF   = -1.0d0              ! save after StpNetCDF seconds, if < 0.0 :  save every timestep
+  StpFlux     = -1.0d0
   MatrixPrint = .F.                ! .TRUE. == print matricies , .FALSE. == do not print any matrix
   FluxDataPrint = .T.
 /END
