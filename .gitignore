@@ -36,3 +36,9 @@ PYTHONSCRIPTS/Figures/**/*.png
 # vim working files
 SRC/*.swp
 OUTPUT/*
+
+# ISSA reduction testing files
+RUN/TESTRUN/MCM+CAPRAM/MCM+CAPRAM_issa_reduced.run
+RUN/TESTRUN/MCM+CAPRAM/MCM32+CAPRAM_issa_red.nc
+RUN/TESTRUN/MCM+CAPRAM/MCM+CAPRAM_issa.run
+
