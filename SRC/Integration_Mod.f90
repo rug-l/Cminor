@@ -165,6 +165,13 @@ MODULE Integration_Mod
 !        WRITE(*,*) h, ","
         Out%nsteps = Out%nsteps + 1
 
+        ! peak S has to be calculated here to be accessible in SetOutputNCDF at the correct time step
+        IF (adiabatic_parcel) THEN
+          IF (Y(iqEq2)/qsatw(Y(iTeq2), pressure_from_height(Y(izEq2)))-1>peak_S) THEN
+            peak_S = Y(iqEq2)/qsatw(Y(iTeq2), pressure_from_height(Y(izEq2)))-1
+          END IF
+        END IF
+
         ! --- save to NetCDF file
         IF ( NetCdfPrint ) THEN
           ! check if time step exceed a NetCDF printing time
@@ -190,8 +197,6 @@ MODULE Integration_Mod
               IF (combustion) THEN
                 TempNCDF = YNCDF(nDIM)
               ELSE IF (adiabatic_parcel) THEN
-                ! peak S has to be calculated here to be accessible in SetOutputNCDF at the correct time step
-                IF (Y(iqEq2)/qsatw(Y(iTeq2), pressure_from_height(Y(izEq2)))-1>peak_S) peak_S = Y(iqEq2)/qsatw(Y(iTeq2), pressure_from_height(Y(izEq2)))-1
                 TempNCDF        = linpolate(T_parcel, Y(iTeq2), linfac)
                 rhoNCDF         = linpolate(rho_parcel, Y(iRhoeq2), linfac)
                 qNCDF           = linpolate(q_parcel, Y(iqEq2), linfac)
