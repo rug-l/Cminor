@@ -1204,7 +1204,8 @@
 
     DO i = 1, nDropletClasses
       ! sum concentrations scaled to one droplet (mega for cm3->m3)
-      n_s(i) = SUM(Y(nD_Ptr_spc(iAs)+i-1)) * mega / DropletClasses%Number(i)
+      !n_s(i) = SUM(Y(nD_Ptr_spc(iAs)+i-1)) * mega / DropletClasses%Number(i)
+      n_s(i) = SUM(Y(nD_Ptr_spc(iAs)+i-1)) * mega / rho_parcel / DropletClasses%Number(i)
     END DO
 
     IF ( PRESENT(dSeqdmw_out) ) THEN
