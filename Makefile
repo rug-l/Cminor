@@ -141,7 +141,7 @@ SRCS = $(addprefix $(SRC_DIR)/, \
 	Sparse_Mod.f90 String_Mod.f90 HashStr_Mod.f90 InputTool_Mod.f90 \
 	ChemSys_Mod.f90 IO_Mod.f90 ChemKinInput_Mod.f90 fp_parameters.f90 \
 	fparser.f90 Rates_Mod.f90 Rosenbrock_Mod.f90 Integration_Mod.f90 \
-	Cminor_Driver_Mod.f90 Cminor.f90)
+	Cminor_host_Mod.f90 Cminor_Driver_Mod.f90 Cminor.f90)
 
 BASE_OBJS_OPT = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DIR)/%.o,$(SRCS))
 BASE_OBJS_DBG = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DBG_DIR)/%.o,$(SRCS))

@@ -75,6 +75,12 @@ Cminor can be run in one of three configurations:
 
    `cminor_lib` / `libcminor_lib.a` contains all modules and the driver API (`cminor_initialize` / `cminor_run` / …) but **not** the thin `PROGRAM` in `SRC/Cminor.f90` (no CLI `getarg` symbols). Link that executable separately, or call the driver from another host (e.g. ICON).
 
+   **ICON–MUSCAT coupling modes** (chemistry inside the 3D host):
+   - **Mode 0:** black-box — host calls Cminor’s own Rosenbrock/`Integrate` per cell (nested solver).
+   - **Mode 1:** host keeps its Rosenbrock (error control + linear solve); Cminor supplies only chem RHS $f$ and Jacobian $J_{\mathrm{chem}}$.
+
+   Mode 1 chem kernels (`Cminor_host_Mod`): after init through symbolic `Jac_CC`, call `cminor_host_set_state(Temp,Press)` then `cminor_host_f` / `cminor_host_jac` (or `cminor_host_f_and_jac`). Unified $f=\mathrm{BAT}\,R(y)$ (no emissions) and sparse $J=\partial f/\partial y$; multi-droplet uses the ValPtr path. Gas-only mechanisms are the ICON MVP; aqueous later via the same API.
+
    Time-loop design today is **option 1**: `Integrate` owns the Rosenbrock loop and NetCDF writes; `Cminor_Driver_Mod` owns init, outer NetCDF-window loop, ISSA, finalize. A later **option 2** would extract one Rosenbrock step and move NetCDF writes into the driver loop without changing CMake products or the thin `PROGRAM`.
 
 4. Install Python dependencies for regression tests:

@@ -43,6 +43,7 @@ set(CMINOR_LIB_SOURCES
   SRC/Rates_Mod.f90
   SRC/Rosenbrock_Mod.f90
   SRC/Integration_Mod.f90
+  SRC/Cminor_host_Mod.f90
   SRC/Cminor_Driver_Mod.f90
 )
 
