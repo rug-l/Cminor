@@ -2595,7 +2595,8 @@ MODULE Chemsys_Mod
     IF ( nr_liquid > 0 ) hasLiquidReac = .TRUE.
 
     hasPhotoReac  = (nr_G_photo+nr_A_photo) > 0
-    
+    PHOTO         = hasPhotoReac   ! Rates_Mod zenith/sun gate (same condition)
+
     nList = 0
     IF (ASSOCIATED(LGas%Start))    nList=nList+1
     IF (ASSOCIATED(LHenry%Start))  nList=nList+1
