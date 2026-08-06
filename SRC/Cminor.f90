@@ -61,7 +61,7 @@ PROGRAM Cminor
                             & DataUnit, DataFile, ConcUnit, ConcFile, TimerNetCDF, Timer_Read,  &
                             & ConcMetaUnit, ConcMetaFile, ConcDataPrint, ChemUnit, AtolTemp,    &
                             & AtolAqua, ChemFile, Time_Finish, Time_Read, TimerSymbolic, RH,    &
-                            & Reduction
+                            & Reduction, F90_PATH_MAX
 #ifdef ISSA
   USE ISSA_Reduce_Mod, ONLY: RunISSAReduction
 #endif
@@ -91,7 +91,7 @@ PROGRAM Cminor
 
   IMPLICIT NONE
   !
-  CHARACTER(80)   :: Filename0 = ''        ! *.run file
+  CHARACTER(F90_PATH_MAX) :: Filename0 = ''        ! *.run file
   !
   INTEGER  :: i,j,jj
 
