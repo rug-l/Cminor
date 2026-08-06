@@ -10,6 +10,9 @@
  MODULE Control_Mod
    USE Kind_Mod, ONLY: dp
    USE iso_fortran_env
+
+!--- Path / namelist filename buffer (must precede CHARACTER(F90_PATH_MAX) decls)
+   INTEGER, PARAMETER :: F90_PATH_MAX = 1024
 !
 !-----------------------------------------------------------------
 !---  Scenario
@@ -22,21 +25,22 @@
       INTEGER(8)  :: clock_rate, clock_maxcount
 
 !--- Files
-      CHARACTER(80) :: RunFile      = ''          & ! Simulation data file
+      CHARACTER(F90_PATH_MAX) :: RunFile      = ''          & ! Simulation data file
 &                    , SysFile      = ''          & ! Chemical mechanism
 &                    , ChemFile     = ''          & ! Chemical mechanism in .chem format
 &                    , InitFile     = ''          & ! Initial concentrations
 &                    , DataFile     = ''          & ! Gas and Aqueous data
-&                    , DatPolicy    = 'warn'      & ! 'stop' or 'warn' for missing .dat species data
-&                    , MWFile       = ''          & ! molecular weights of species 
+&                    , MWFile       = ''          & ! molecular weights of species
 &                    , NetcdfFile   = ''          & ! NetCDF output file
-&                    , ODEsolver    = ''          & ! Method for Rosenbrock Integration
 &                    , RedCtrlFile  = ''            ! Reduction control file
 
-      CHARACTER(80) :: FluxMetaFile = ''         ! meta data for unformatted flux data
-      CHARACTER(80) :: FluxFile     = ''         ! flux data (unformatted)
-      CHARACTER(80) :: ConcMetaFile = ''         ! meta data for unformatted concentration data
-      CHARACTER(80) :: ConcFile     = ''         ! concentration data (unformatted)
+      CHARACTER(80) :: DatPolicy    = 'warn'      ! 'stop' or 'warn' for missing .dat species data
+      CHARACTER(80) :: ODEsolver    = ''          ! Method for Rosenbrock Integration
+
+      CHARACTER(F90_PATH_MAX) :: FluxMetaFile = ''         ! meta data for unformatted flux data
+      CHARACTER(F90_PATH_MAX) :: FluxFile     = ''         ! flux data (unformatted)
+      CHARACTER(F90_PATH_MAX) :: ConcMetaFile = ''         ! meta data for unformatted concentration data
+      CHARACTER(F90_PATH_MAX) :: ConcFile     = ''         ! concentration data (unformatted)
 
 !
 !--- Unit Numbers
