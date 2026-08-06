@@ -61,7 +61,7 @@ PROGRAM Cminor
                             & DataUnit, DataFile, ConcUnit, ConcFile, TimerNetCDF, Timer_Read,  &
                             & ConcMetaUnit, ConcMetaFile, ConcDataPrint, ChemUnit, AtolTemp,    &
                             & AtolAqua, ChemFile, Time_Finish, Time_Read, TimerSymbolic, RH,    &
-                            & Reduction, F90_PATH_MAX
+                            & Reduction, ReduceOnly, F90_PATH_MAX
 #ifdef ISSA
   USE ISSA_Reduce_Mod, ONLY: RunISSAReduction
 #endif
@@ -526,7 +526,7 @@ PROGRAM Cminor
   Out%npds = Out%npds + 1
   CALL End_Timer(StartTimer, TimeJac)
 
-  IF ( Simulation ) THEN
+  IF ( Simulation .AND. .NOT. ReduceOnly ) THEN
     IF ( FluxDataPrint ) THEN
       FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
       FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
@@ -581,11 +581,19 @@ PROGRAM Cminor
 
     CALL Output_Statistics
 
-#ifdef ISSA
-    IF ( Reduction ) CALL RunISSAReduction()
-#endif
-
   END IF
+
+#ifdef ISSA
+  IF ( Reduction ) THEN
+    ! ReduceOnly: point flux files at prior full run's OUTPUT/flux_<FluxLabel>.*.
+    ! Non-ReduceOnly: LABEL is the current run, flux files set above.
+    IF ( ReduceOnly ) THEN
+      FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
+      FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
+    END IF
+    CALL RunISSAReduction()
+  END IF
+#endif
   
   WRITE(*,*); WRITE(*,*)
 

@@ -28,7 +28,8 @@ MODULE InitRoutines_Mod
                            & rTolROW, Simulation, StpConc, StpFlux, StpNetCdf, Tspan,   &
                            & tBegin, tEnd, Temperature0, combustion, Tspan_tot,         &
                            & activation_radius, DropletClassPrint, switch_updraft_velocity,&
-                           & Reduction, RedCtrlFile
+                           & Reduction, RedCtrlFile, ReduceOnly, FluxLabel,             &
+                           & IssaEps_Red, IssaRed_TStart, IssaRed_TEnd
 
       USE Meteo_Mod,   ONLY: R, molw_air, qsatw, H2O, RefRH, N2, O2, RefM_dry, RefO2,   &
                            & H2, RefH2, RefH2O, RefM, RefTemp, RefPressure, esatw,      &
@@ -43,14 +44,16 @@ MODULE InitRoutines_Mod
       &                    WaitBar , &
       &                    combustion , &
       &                    Simulation , &
-      &                    Reduction
+      &                    Reduction , &
+      &                    ReduceOnly
 
       NAMELIST /FILES/  SysFile ,    &
       &                 DataFile ,   &
       &                 InitFile ,   &
       &                 MWFile ,     &
       &                 DatPolicy ,  &
-      &                 RedCtrlFile
+      &                 RedCtrlFile ,&
+      &                 FluxLabel
 
       NAMELIST /TIMES/  tBegin, tEnd
 
@@ -95,6 +98,10 @@ MODULE InitRoutines_Mod
       &                  FluxDataPrint,     &
       &                  ConcDataPrint
 
+      NAMELIST /ISSA_RED/  IssaEps_Red,  &
+      &                    IssaRed_TStart,&
+      &                    IssaRed_TEnd
+
 !
 !===================================================================
 !===  Set and Read Simulation Values
@@ -115,6 +122,7 @@ MODULE InitRoutines_Mod
       combustion = .FALSE.
       Simulation = .TRUE.
       Reduction  = .FALSE.
+      ReduceOnly = .FALSE.
 
 !--- Read SCENARIO namelist
       READ(RunUnit,SCENARIO,IOSTAT=io_stat,IOMSG=io_msg)
@@ -322,6 +330,28 @@ MODULE InitRoutines_Mod
       NetCDFFile = ADJUSTL(NetCDFFile)
       IF ( TRIM(NetCdfFile) == '' ) NetCdfPrint = .FALSE.   ! no output if no filename is declared
 
+!-----------------------------------------------------------------
+!---  ISSA reduction overrides (optional, sentinel -1 = ISSA defaults)
+!-----------------------------------------------------------------
+      IssaEps_Red    = -1.0_dp
+      IssaRed_TStart = -1.0_dp
+      IssaRed_TEnd   = -1.0_dp
+      READ(RunUnit,ISSA_RED,IOSTAT=io_stat,IOMSG=io_msg)
+      ! io_stat < 0 = end-of-file or namelist not present: optional, ignore.
+      ! io_stat > 0 = real parse error.
+      IF ( io_stat > 0 ) THEN
+        WRITE(*,*) '   ERROR while reading ISSA_RED list  ::  ',io_stat,'  '//TRIM(io_msg)
+        STOP
+      END IF
+
+      ! When ReduceOnly, redirect LABEL so InitReduction reads the prior full run's flux files.
+      IF ( ReduceOnly ) THEN
+        IF ( TRIM(FluxLabel) == '' ) THEN
+          WRITE(*,*) '  ReduceOnly=.T. but FluxLabel is empty (need LABEL of prior full run)'
+          STOP
+        END IF
+        LABEL = ADJUSTL(FluxLabel)
+      END IF
    END SUBROUTINE InitRun
 
   SUBROUTINE ErrorCheck(io_stat,io_msg,cause)
