@@ -36,6 +36,7 @@
 
       CHARACTER(80) :: DatPolicy    = 'warn'      ! 'stop' or 'warn' for missing .dat species data
       CHARACTER(80) :: ODEsolver    = ''          ! Method for Rosenbrock Integration
+      CHARACTER(80) :: FluxLabel    = ''          ! LABEL of prior full run (for ReduceOnly flux lookup)
 
       CHARACTER(F90_PATH_MAX) :: FluxMetaFile = ''         ! meta data for unformatted flux data
       CHARACTER(F90_PATH_MAX) :: FluxFile     = ''         ! flux data (unformatted)
@@ -97,6 +98,7 @@
 &              , ConcDataPrint      & ! writing concentration data and analyse after simulaiton -> print new reaction file
 &              , Simulation         & ! calculation of species concentration 
 &              , Reduction          & ! post-run ISSA mechanism reduction
+&              , ReduceOnly         & ! skip integration; ISSA on existing flux files (FluxLabel)
 &              , Lumping              ! species lumping of chemical system
 
       INTEGER :: Error_Est         ! error estimation 1 = inf norm  , 2 = euklid norm
@@ -107,6 +109,11 @@
 
       INTEGER                     :: iStpFlux=0 & ! number of written flux steps
 &                                  , iStpConc=0   ! number of written concentration steps
+
+!--- ISSA reduction overrides (sentinel -1.0 = use ISSA ctrl defaults)
+      REAL(dp) :: IssaEps_Red    = -1.0_dp   ! eps_red override (0..1)
+      REAL(dp) :: IssaRed_TStart = -1.0_dp   ! ISSA analysis window start [h]
+      REAL(dp) :: IssaRed_TEnd   = -1.0_dp   ! ISSA analysis window end   [h]
 
 !-----------------------------------------------------------------
 !---  Times

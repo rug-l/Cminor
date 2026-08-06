@@ -174,26 +174,30 @@ MODULE Integration_Mod
 
         ! --- save to NetCDF file
         IF ( NetCdfPrint ) THEN
-          ! check if time step exceed a NetCDF printing time
           NCDF_iTime_before = NetCDF%iTime
-          ! calculate netcdf step after integration time step (+1 because of initial ncdf output)
-          NCDF_iTime_after = INT((tnew-tspan(1))/StpNetCdf) + 1
 
-          IF ( NCDF_iTime_after > NCDF_iTime_before .OR. StpNetCDF < ZERO .OR. done) THEN 
+          IF ( StpNetCDF < ZERO ) THEN
+            NCDF_iTime_after = NCDF_iTime_before + 1
+          ELSE
+            NCDF_iTime_after = INT((tnew-Tspan(1))/StpNetCdf) + 1
+            IF ( done .AND. (NCDF_iTime_after-1)*StpNetCdf < Tspan(2) ) &
+              NCDF_iTime_after = NCDF_iTime_after + 1
+          END IF
+
+          IF ( NCDF_iTime_after > NCDF_iTime_before ) THEN
             CALL Start_Timer(TimerNetCDF)
 
-            ! if done, add a step for the output at t=t_end
-            IF ( done .AND. (NCDF_iTime_after-1)*StpNetCdf<Tspan(2) ) NCDF_iTime_after = NCDF_iTime_after + 1
-
             DO NCDF_iTime = NCDF_iTime_before+1, NCDF_iTime_after
-              ! get NetCDF printing time point
-              tNCDF = min((NCDF_iTime-1)*StpNetCdf, Tspan(2))
-              linfac = (tNCDF-t)/(eps+tnew-t)
+              IF ( StpNetCDF < ZERO ) THEN
+                tNCDF  = tnew
+                linfac = ONE
+              ELSE
+                tNCDF  = MIN((NCDF_iTime-1)*StpNetCdf, Tspan(2))
+                linfac = (tNCDF-t)/(eps+tnew-t)
+              END IF
 
-              ! interpolate concentrations
               YNCDF = linpolate(Y0, Y, linfac)
 
-              ! linearly interpolate everything needed to the NetCDF printing time point
               IF (combustion) THEN
                 TempNCDF = YNCDF(nDIM)
               ELSE IF (adiabatic_parcel) THEN
@@ -211,7 +215,7 @@ MODULE Integration_Mod
                 IF (ns_AQUA>0) THEN
                   rhoNCDF       = rho_parcel0
                   LWCsNCDF      = LWC_array(tNCDF)
-                  nDropletsNCDF = DropletClasses%Number ! currently conserved, no interpolation
+                  nDropletsNCDF = DropletClasses%Number
                 END IF
                 TempNCDF = Temperature
               END IF
@@ -233,7 +237,7 @@ MODULE Integration_Mod
             END DO
             CALL End_Timer(TimerNetCDF, TimeNetCDF)
           END IF
-        END IF 
+        END IF
 
         IF (combustion) Temperature = Y(nDIM)
 
