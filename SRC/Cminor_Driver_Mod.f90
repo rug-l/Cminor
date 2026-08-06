@@ -113,11 +113,12 @@ MODULE Cminor_Driver_Mod
 CONTAINS
 
   !================================================================
-  ! Public driver API
+  ! Box driver: linear init → run → reduce → finalize
   !================================================================
 
   SUBROUTINE cminor_initialize(run_path)
     CHARACTER(*), INTENT(IN) :: run_path
+    INTEGER :: i, j, jj
 
     CALL SYSTEM_CLOCK(count_rate = clock_rate)
     CALL SYSTEM_CLOCK(count_max  = clock_maxcount)
@@ -132,12 +133,99 @@ CONTAINS
     CALL Start_Timer(Timer_Read)
     CALL Start_Timer(Timer_Finish)
 
-    !--- mechanism + INI (Mode 1 host reuses) --------------------------
+    !--------------------------------------------------------------------
+    !--- BEGIN mechanism + INI (Mode 1 host reuses) --------------------
+
     WRITE(*,777,ADVANCE='NO') 'Reading sys-file .............'
     IF ( combustion ) THEN
-      CALL Init_Combustion
+
+      !--------------------------------------------------------------------
+      !--- BEGIN Init_Combustion ---
+      CALL Read_Elements( SysFile , SysUnit )
+      CALL Read_Species ( SysFile , SysUnit )
+      CALL Read_Reaction( SysFile , SysUnit )
+
+      WRITE(*,*) 'done   ---->  Solve Gas Energy Equation '
+
+      CALL Print_ChemFile   ( ReactionSystem , ChemFile , ChemUnit , .TRUE. )
+
+      CALL GetSpeciesNames( ChemFile , y_name )
+      CALL Read_ThermoData( SwitchTemp , DataFile , DataUnit , nspc )
+
+      bGs(1) = 1
+      bGs(2) = ns_GAS
+      iGs = [(i, i=bGs(1),bGs(2))]
+      iGs2 = iGs
+      hasGasSpc = .TRUE.
+
+      CALL make_ChemSys_1_to_nD_arrays()
+      CALL Setup_ThirdBodyIndex
+      CALL Setup_ReactionIndex
+
+      ALLOCATE( InitValAct(ns_GAS+1) , InitValKat(ns_KAT) , &
+      &         y_emi(ns_GAS) ,        y_depos(ns_GAS),     &
+      &         GFE(nspc),             DGFEdT(nspc),        &
+      &         DelGFE(nreac),         DDelGFEdT(nreac) )
+      InitValAct = ZERO; InitValKat = ZERO;
+      y_emi = ZERO; y_depos = ZERO; 
+      GFE = ZERO; DGFEdT = ZERO;
+      DelGFE = ZERO; DDelGFEdT = ZERO;
+
+
+      IF ( MWFile /= '' ) THEN
+        CALL Read_MolecularWeights(MW,MWFile,MWUnit,nspc)
+
+        rMW = [ONE / MW]
+
+        ALLOCATE( MoleFrac(ns_GAS) , MassFrac(ns_GAS) )
+        MoleFrac = ZERO; MassFrac  = ZERO
+
+        MoleFrac = 1.0e-20_dp
+        CALL Read_INI_file( InitFile , MoleFrac, InitValKat , 'GAS' , 'INITIAL' )
+
+        Press_in_dyncm2 = Pressure0 * Pa_to_dyncm2
+
+        MassFrac = MoleFr_To_MassFr  ( MoleFrac )
+        MoleConc = MoleFr_To_MoleConc( MoleFrac                &
+        &                            , Press = Press_in_dyncm2 &
+        &                            , Temp  = Temperature0    )
+      ELSE
+        WRITE(*,*)
+        WRITE(*,777) '    No molecular weights are given.  '
+        WRITE(*,777) '    Make sure the initial values are given in [mol/cm3] !'
+        WRITE(*,*)
+        ALLOCATE( MoleConc(ns_GAS) )
+        MoleConc = 1.0e-20_dp
+        CALL Read_INI_file( InitFile , MoleConc, InitValKat , 'GAS' , 'INITIAL' )
+      END IF
+
+      rho  = Density( MoleConc )
+      rRho = ONE/rho
+      InitValAct(1:ns_GAS) = MoleConc
+      InitValAct(ns_GAS+1) = Temperature0
+      !--- END Init_Combustion ---
+      !--------------------------------------------------------------------
+
     ELSE
-      CALL Init_Atmosphere
+
+      !--------------------------------------------------------------------
+      !--- BEGIN Init_Atmosphere ---
+      CALL ReadSystem( SysFile )
+      WRITE(*,*) 'done'
+
+      CALL Print_ChemFile( ReactionSystem, ChemFile, ChemUnit, .FALSE. )
+
+      IF ( nr_special > 0 ) THEN
+        CALL initf( nr_special )
+        DO i = 1,nr_special
+          CALL parsef ( i, ReactionSystem(iR%iSPECIAL(i))%Special%Formula    &
+          &              , ReactionSystem(iR%iSPECIAL(i))%Special%cVariables )
+        END DO
+      END IF
+
+      CALL InputChemicalData( InitFile , DataFile )
+      !--- END Init_Atmosphere --
+      !--------------------------------------------------------------------
     END IF
 
     WRITE(*,777) 'Reading ini-file ............. done'
@@ -154,235 +242,9 @@ CONTAINS
     CALL Read_Diag( NetCDF%spc_Pos , NetCDF%spc_Phase , InitFile )
     CALL Read_DiagEmiss( NetCDF%Emiss_Pos, InitFile )
     CALL End_Timer(Timer_Read, Time_Read)
+    !--- END mechanism + INI ------------------------------------------
 
-    !--- species order, ODE dims, Atol, Y0 (Mode 1 host reuses) --------
-    CALL Init_State
-
-    !--- box I/O only (skip for Mode 1 host) ---------------------------
-    CALL Init_NetCDF_File
-
-    WRITE(*,777,ADVANCE='NO') 'Symbolic-phase................'
-    CALL Start_Timer(TimerSymbolic)
-
-    !--- sparse BA/BAT + Jac_CC pattern (Mode 1 host reuses) -----------
-    CALL SymbolicAdd( BA , B , A )
-    CALL SparseAdd  ( BA , B , A, '-' )
-    CALL TransposeSparse( BAT , BA )
-    CALL SymbolicMult( BAT , A , tmpJacCC )
-    Id = SparseID( nspc )
-    CALL SymbolicAdd( Jac_CC , Id , tmpJacCC )
-    CALL Free_Matrix_CSR( Id )
-    ALLOCATE(maxErrorCounter(nDIM2))
-    maxErrorCounter = 0
-
-    !--- box Rosenbrock LU only (Mode 1 keeps host GS/LU) --------------
-    CALL SetRosenbrockMethod( ROS , ODEsolver )
-    CALL BuildSymbolicClassicMatrix( Miter, Jac_CC )
-    CALL Init_Symbolic_LU
-    WRITE(*,*) 'done'
-    WRITE(*,*)
-
-    CALL Write_Sparse_Matrices
-    WRITE(*,777) 'Matrix Statistics: '
-    WRITE(*,*)
-    CALL Matrix_Statistics(A,B,BAT,tmpJacCC,Miter,LU_Miter)
-    CALL Free_Matrix_CSR( tmpJacCC )
-    CALL Free_SpRowColD( temp_LU_Dec )
-    CALL End_Timer(TimerSymbolic, TimeSymbolic)
-
-    !--- initialize flux and conc files for reduction (Mode 1 host reuses) ---
-    IF ( Simulation .AND. .NOT. ReduceOnly ) THEN
-      IF ( FluxDataPrint ) THEN
-        iStpFlux = 0
-        FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
-        FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
-        CALL OpenFile_wStream(FluxUnit,FluxFile);       CLOSE(FluxUnit)
-        CALL OpenFile_wSeq(FluxMetaUnit,FluxMetaFile);  CLOSE(FluxMetaUnit)
-      END IF
-
-      IF ( ConcDataPrint ) THEN
-        ConcFile     = 'OUTPUT/conc_'//TRIM(LABEL)//'.dat'
-        ConcMetaFile = 'OUTPUT/concmeta_'//TRIM(LABEL)//'.dat'
-        CALL OpenFile_wStream(ConcUnit,ConcFile);       CLOSE(ConcUnit)
-        CALL OpenFile_wSeq(ConcMetaUnit,ConcMetaFile);  CLOSE(ConcMetaUnit)
-      END IF
-    END IF
-
-
-777 FORMAT(10X,A)
-  END SUBROUTINE cminor_initialize
-
-  SUBROUTINE cminor_run()
-    ! t0 Rate + Jac_CC ValPtr fill (box h0 / stats); host will call rates per cell instead
-    
-    ! --- compute reaction rates and jacobian at t0 ---
-    ! Note: rhs of the ODE system is not computed at this point, however,
-    ! for icon coupling: f_chem = BAT * Rate, J_chem = Jac_CC
-    RateCnt = 0
-    IF (combustion) THEN
-      CALL ReactionRates( Y_initial, Rate )
-    ELSE
-      CALL ReactionRates( Tspan(1), Y_initial, Rate )
-    END IF
-    Y = MAX( ABS(InitValAct) , eps ) * SIGN( ONE , InitValAct )
-
-    CALL Start_Timer(StartTimer)
-    CALL CSR_2_Empty_ValPtr( Jac_CC, nD_spc, nDropletClasses )
-    CALL Jacobian_CC_ValPtr(Jac_CC , BAT , A , Rate , Y)
-    Out%npds = Out%npds + 1
-    CALL End_Timer(StartTimer, TimeJac)
-
-    ! Main loop (box)
-    done = .FALSE.
-    IF ( Simulation .AND. .NOT. ReduceOnly ) THEN
-      IF ( FluxDataPrint ) THEN
-        iStpFlux = 0
-        FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
-        FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
-        CALL OpenFile_wStream(FluxUnit,FluxFile);       CLOSE(FluxUnit)
-        CALL OpenFile_wSeq(FluxMetaUnit,FluxMetaFile);  CLOSE(FluxMetaUnit)
-      END IF
-
-      IF ( ConcDataPrint ) THEN
-        ConcFile     = 'OUTPUT/conc_'//TRIM(LABEL)//'.dat'
-        ConcMetaFile = 'OUTPUT/concmeta_'//TRIM(LABEL)//'.dat'
-        CALL OpenFile_wStream(ConcUnit,ConcFile);       CLOSE(ConcUnit)
-        CALL OpenFile_wSeq(ConcMetaUnit,ConcMetaFile);  CLOSE(ConcMetaUnit)
-      END IF
-
-      Tspan = [tBegin, tEnd]
-      h0 = InitialStepSize( Jac_CC, Rate, Tspan(1), Y_initial, ROS%pow )
-
-      DO
-        CALL Integrate ( InitValAct   &
-        &              , Temperature0 &
-        &              , h0           &
-        &              , Tspan        )
-
-        IF (Tspan(2) == tEnd .OR. done) EXIT
-        Tspan = [Tspan(2), Tspan(2)+StpNetCDF]
-
-        IF ( Tspan(2) >= tEnd ) THEN
-          TSpan(2) = tEnd
-          done = .TRUE.
-        END IF
-      END DO
-
-      CALL End_Timer(Timer_Finish, Time_Finish)
-      CALL Output_Statistics
-    END IF
-  END SUBROUTINE cminor_run
-
-  SUBROUTINE cminor_reduce()
-#ifdef ISSA
-    IF ( Reduction ) THEN
-      IF ( ReduceOnly ) THEN
-        FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
-        FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
-      END IF
-      CALL RunISSAReduction()
-    END IF
-#endif
-  END SUBROUTINE cminor_reduce
-
-  SUBROUTINE cminor_finalize()
-    WRITE(*,*); WRITE(*,*)
-    CALL ShowMaxErrorCounter()
-  END SUBROUTINE cminor_finalize
-
-  !================================================================
-  ! Phase helpers
-  !================================================================
-
-  SUBROUTINE Init_Combustion
-    INTEGER :: i
-
-    CALL Read_Elements( SysFile , SysUnit )
-    CALL Read_Species ( SysFile , SysUnit )
-    CALL Read_Reaction( SysFile , SysUnit )
-
-    WRITE(*,*) 'done   ---->  Solve Gas Energy Equation '
-
-    CALL Print_ChemFile   ( ReactionSystem , ChemFile , ChemUnit , .TRUE. )
-
-    CALL GetSpeciesNames( ChemFile , y_name )
-    CALL Read_ThermoData( SwitchTemp , DataFile , DataUnit , nspc )
-
-    bGs(1) = 1
-    bGs(2) = ns_GAS
-    iGs = [(i, i=bGs(1),bGs(2))]
-    iGs2 = iGs
-    hasGasSpc = .TRUE.
-
-    CALL make_ChemSys_1_to_nD_arrays()
-    CALL Setup_ThirdBodyIndex
-    CALL Setup_ReactionIndex
-
-    ALLOCATE( InitValAct(ns_GAS+1) , InitValKat(ns_KAT) , y_emi(ns_GAS) , y_depos(ns_GAS))
-    y_emi   = ZERO
-    y_depos = ZERO
-
-    ALLOCATE( GFE(nspc)    , DGFEdT(nspc)   &
-    &       , DelGFE(nreac), DDelGFEdT(nreac) )
-    GFE      = ZERO; DGFEdT    = ZERO
-    DelGFE   = ZERO; DDelGFEdT = ZERO
-
-    IF ( MWFile /= '' ) THEN
-      CALL Read_MolecularWeights(MW,MWFile,MWUnit,nspc)
-
-      rMW = [ONE / MW]
-
-      ALLOCATE( MoleFrac(ns_GAS) , MassFrac(ns_GAS) )
-      MoleFrac = ZERO; MassFrac  = ZERO
-
-      MoleFrac = 1.0e-20_dp
-      CALL Read_INI_file( InitFile , MoleFrac, InitValKat , 'GAS' , 'INITIAL' )
-
-      Press_in_dyncm2 = Pressure0 * Pa_to_dyncm2
-
-      MassFrac = MoleFr_To_MassFr  ( MoleFrac )
-      MoleConc = MoleFr_To_MoleConc( MoleFrac                &
-      &                            , Press = Press_in_dyncm2 &
-      &                            , Temp  = Temperature0    )
-    ELSE
-      WRITE(*,*)
-      WRITE(*,777) '    No molecular weights are given.  '
-      WRITE(*,777) '    Make sure the initial values are given in [mol/cm3] !'
-      WRITE(*,*)
-      ALLOCATE( MoleConc(ns_GAS) )
-      MoleConc = 1.0e-20_dp
-      CALL Read_INI_file( InitFile , MoleConc, InitValKat , 'GAS' , 'INITIAL' )
-    END IF
-
-    rho  = Density( MoleConc )
-    rRho = ONE/rho
-    InitValAct(1:ns_GAS) = MoleConc
-    InitValAct(ns_GAS+1) = Temperature0
-
-777 FORMAT(10X,A)
-  END SUBROUTINE Init_Combustion
-
-  SUBROUTINE Init_Atmosphere
-    INTEGER :: i
-
-    CALL ReadSystem( SysFile )
-    WRITE(*,*) 'done'
-
-    CALL Print_ChemFile( ReactionSystem, ChemFile, ChemUnit, .FALSE. )
-
-    IF ( nr_special > 0 ) THEN
-      CALL initf( nr_special )
-      DO i = 1,nr_special
-        CALL parsef ( i, ReactionSystem(iR%iSPECIAL(i))%Special%Formula    &
-        &              , ReactionSystem(iR%iSPECIAL(i))%Special%cVariables )
-      END DO
-    END IF
-
-    CALL InputChemicalData( InitFile , DataFile )
-  END SUBROUTINE Init_Atmosphere
-
-  SUBROUTINE Init_State
-    ! FO/SO/HO maps, ODE dims, print, Atol, Y0
+    !--- BEGIN Init_State (order, dims, Atol, Y0; Mode 1 host reuses) --
     CALL Setup_SpeciesOrder(A)
 
     nsr  = nspc  + nreac
@@ -440,16 +302,9 @@ CONTAINS
     ELSE
       Y_initial = InitValAct
     END IF
+    !--- END Init_State -----------------------------------------------
 
-777 FORMAT(10X,A)
-798 FORMAT(10X,'    Sum Initval (',A7,')      =  ', Es8.2, A)
-800 FORMAT(10X,'    Sum Emissions (gaseous)    =  ', Es8.2, A)
-801 FORMAT(10X,'    Temperature                =  ', Es8.2,'  [K]')
-802 FORMAT(10X,'    Pressure                   =  ', Es8.2,'  [Pa]')
-803 FORMAT(10X,'    Reactor density            =  ', Es8.2,'  [kg/cm3]')
-  END SUBROUTINE Init_State
-
-  SUBROUTINE Init_NetCDF_File
+    !--- BEGIN Init_NetCDF_File (box I/O only; skip for Mode 1 host) ---
     IF ( NetCdfPrint ) THEN
       CALL Start_Timer(TimerNetCDF)
       CALL InitNetcdf
@@ -475,31 +330,45 @@ CONTAINS
       CALL StepNetCDF( NetCDF )
       CALL End_Timer(TimerNetCDF, TimeNetCDF)
     END IF
-  END SUBROUTINE Init_NetCDF_File
+    !--- END Init_NetCDF_File -----------------------------------------
 
-  SUBROUTINE Init_Symbolic_LU
-    INTEGER :: i, j, jj
+    WRITE(*,777,ADVANCE='NO') 'Symbolic-phase................'
+    CALL Start_Timer(TimerSymbolic)
 
+    !--- sparse BA/BAT + Jac_CC pattern (Mode 1 host reuses) -----------
+    CALL SymbolicAdd( BA , B , A )
+    CALL SparseAdd  ( BA , B , A, '-' )
+    CALL TransposeSparse( BAT , BA )
+    CALL SymbolicMult( BAT , A , tmpJacCC )
+    Id = SparseID( nspc )
+    CALL SymbolicAdd( Jac_CC , Id , tmpJacCC )
+    CALL Free_Matrix_CSR( Id )
+    ALLOCATE(maxErrorCounter(nDIM2))
+    maxErrorCounter = 0
+
+    !--- box Rosenbrock LU only (Mode 1 keeps host GS/LU) --------------
+    CALL SetRosenbrockMethod( ROS , ODEsolver )
+    CALL BuildSymbolicClassicMatrix( Miter, Jac_CC )
+
+    !--- BEGIN Init_Symbolic_LU ---
     temp_LU_Dec = CSR_to_SpRowColD(Miter)
 
     IF ( Ordering ) THEN
       ALLOCATE(temp_LU_Dec%Restr(Miter%m))
       temp_LU_Dec%Restr = 0
       IF (hasAquaSpc .AND. nDropletClasses>1) THEN
-        DO i=bHr(1), bHr(2)
-          DO jj = A%RowPtr(i), A%RowPtr(i+1)-1
-            j = A%ColInd(jj)
-            IF (.NOT. nD_spc(j)) THEN
-              temp_LU_Dec%Restr(j) = -1
-            END IF
-          END DO
+        DO jj = A%RowPtr(bHr(1)), A%RowPtr(bHr(2)+1)-1
+          j = A%ColInd(jj)
+          IF (.NOT. nD_spc(j)) THEN
+            temp_LU_Dec%Restr(j) = -1
+          END IF
         END DO
       END IF
       CALL SymbLU_SpRowColD_M( temp_LU_Dec )
     ELSE
       ALLOCATE(PivOrder(temp_LU_Dec%n))
       PivOrder = -90
-      PivOrder(     1 : nDIM     ) = [(i , i = 1     , nDim )]
+      PivOrder(1:nDIM) = [(i , i = 1, nDIM )]
       CALL SymbLU_SpRowColD(temp_LU_Dec , PivOrder)
     END IF
 
@@ -507,9 +376,11 @@ CONTAINS
     CALL Get_LU_Permutation( LU_Perm, LU_Miter, Miter )
     CALL Get_ValPtr_Permutations(  LU_Perm_ValPtr, w_InvColInd, bPermu, bInvPermu, bPtr, &
                                   &  LU_Miter, Miter, LU_Perm, nDropletClasses, nDIM2)
-  END SUBROUTINE Init_Symbolic_LU
+    !--- END Init_Symbolic_LU ---
+    WRITE(*,*) 'done'
+    WRITE(*,*)
 
-  SUBROUTINE Write_Sparse_Matrices
+    !--- BEGIN Write_Sparse_Matrices ---
     IF (MatrixPrint) THEN
       CALL WriteSparseMatrix(A,'MATRICES/alpha_'//TRIM(LABEL), nreac, nspc)
       CALL WriteSparseMatrix(B,'MATRICES/beta_'//TRIM(LABEL), nreac, nspc)
@@ -520,23 +391,96 @@ CONTAINS
       WRITE(*,777,ADVANCE='NO') '  Continue? [y/n]';  READ(*,*) inpt
       IF (inpt/='y') STOP
     END IF
+    !--- END Write_Sparse_Matrices ---
+
+    WRITE(*,777) 'Matrix Statistics: '
+    WRITE(*,*)
+    CALL Matrix_Statistics(A,B,BAT,tmpJacCC,Miter,LU_Miter)
+    CALL Free_Matrix_CSR( tmpJacCC )
+    CALL Free_SpRowColD( temp_LU_Dec )
+    CALL End_Timer(TimerSymbolic, TimeSymbolic)
+
 777 FORMAT(10X,A)
-  END SUBROUTINE Write_Sparse_Matrices
+798 FORMAT(10X,'    Sum Initval (',A7,')      =  ', Es8.2, A)
+800 FORMAT(10X,'    Sum Emissions (gaseous)    =  ', Es8.2, A)
+801 FORMAT(10X,'    Temperature                =  ', Es8.2,'  [K]')
+802 FORMAT(10X,'    Pressure                   =  ', Es8.2,'  [Pa]')
+803 FORMAT(10X,'    Reactor density            =  ', Es8.2,'  [kg/cm3]')
+  END SUBROUTINE cminor_initialize
 
-  ! SUBROUTINE Init_ReactionRates_t0
-  !   RateCnt = 0
-  !   IF (combustion) THEN
-  !     CALL ReactionRates( Y_initial, Rate )
-  !   ELSE
-  !     CALL ReactionRates( Tspan(1), Y_initial, Rate )
-  !   END IF
-  !   Y = MAX( ABS(InitValAct) , eps ) * SIGN( ONE , InitValAct )
+  SUBROUTINE cminor_run()
+    ! t0 Rate + Jac_CC ValPtr fill (box h0 / stats); host will call rates per cell instead
+    ! Note: RHS not formed here; Mode 1: f_chem = BAT * Rate, J_chem = Jac_CC (Cminor_host_Mod)
 
-  !   CALL Start_Timer(StartTimer)
-  !   CALL CSR_2_Empty_ValPtr( Jac_CC, nD_spc, nDropletClasses )
-  !   CALL Jacobian_CC_ValPtr(Jac_CC , BAT , A , Rate , Y)
-  !   Out%npds = Out%npds + 1
-  !   CALL End_Timer(StartTimer, TimeJac)
-  ! END SUBROUTINE Init_ReactionRates_t0
+    RateCnt = 0
+    IF (combustion) THEN
+      CALL ReactionRates( Y_initial, Rate )
+    ELSE
+      CALL ReactionRates( Tspan(1), Y_initial, Rate )
+    END IF
+    Y = MAX( ABS(InitValAct) , eps ) * SIGN( ONE , InitValAct )
+
+    CALL Start_Timer(StartTimer)
+    CALL CSR_2_Empty_ValPtr( Jac_CC, nD_spc, nDropletClasses )
+    CALL Jacobian_CC_ValPtr(Jac_CC , BAT , A , Rate , Y)
+    Out%npds = Out%npds + 1
+    CALL End_Timer(StartTimer, TimeJac)
+
+    done = .FALSE.
+    IF ( Simulation .AND. .NOT. ReduceOnly ) THEN
+      IF ( FluxDataPrint ) THEN
+        iStpFlux = 0
+        FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
+        FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
+        CALL OpenFile_wStream(FluxUnit,FluxFile);       CLOSE(FluxUnit)
+        CALL OpenFile_wSeq(FluxMetaUnit,FluxMetaFile);  CLOSE(FluxMetaUnit)
+      END IF
+
+      IF ( ConcDataPrint ) THEN
+        ConcFile     = 'OUTPUT/conc_'//TRIM(LABEL)//'.dat'
+        ConcMetaFile = 'OUTPUT/concmeta_'//TRIM(LABEL)//'.dat'
+        CALL OpenFile_wStream(ConcUnit,ConcFile);       CLOSE(ConcUnit)
+        CALL OpenFile_wSeq(ConcMetaUnit,ConcMetaFile);  CLOSE(ConcMetaUnit)
+      END IF
+
+      Tspan = [tBegin, tEnd]
+      h0 = InitialStepSize( Jac_CC, Rate, Tspan(1), Y_initial, ROS%pow )
+
+      DO
+        CALL Integrate ( InitValAct   &
+        &              , Temperature0 &
+        &              , h0           &
+        &              , Tspan        )
+
+        IF (Tspan(2) == tEnd .OR. done) EXIT
+        Tspan = [Tspan(2), Tspan(2)+StpNetCDF]
+
+        IF ( Tspan(2) >= tEnd ) THEN
+          TSpan(2) = tEnd
+          done = .TRUE.
+        END IF
+      END DO
+
+      CALL End_Timer(Timer_Finish, Time_Finish)
+      CALL Output_Statistics
+    END IF
+  END SUBROUTINE cminor_run
+
+  SUBROUTINE cminor_reduce()
+#ifdef ISSA
+    IF ( Reduction ) THEN
+      IF ( ReduceOnly ) THEN
+        FluxFile     = 'OUTPUT/flux_'//TRIM(LABEL)//'.dat'
+        FluxMetaFile = 'OUTPUT/fluxmeta_'//TRIM(LABEL)//'.dat'
+      END IF
+      CALL RunISSAReduction()
+    END IF
+#endif
+  END SUBROUTINE cminor_reduce
+
+  SUBROUTINE cminor_finalize()
+    WRITE(*,*); WRITE(*,*)
+    CALL ShowMaxErrorCounter()
+  END SUBROUTINE cminor_finalize
 
 END MODULE Cminor_Driver_Mod
