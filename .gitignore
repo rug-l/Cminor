@@ -1,6 +1,9 @@
 # MacOS
 .DS_Store
 
+# Cursor
+.agents/
+
 # Libraries
 LIB/*.o
 LIB/*.mod
@@ -12,6 +15,10 @@ LIB_D/*.mod
 
 # Output log files
 OUTPUT/LocalErrorMaxima.log
+
+# DOC
+DOC/**/*
+!DOC/Cminor_supplement.pdf
 
 # Output matrices 
 MATRICES/*.SparseMat
