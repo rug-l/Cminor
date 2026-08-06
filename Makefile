@@ -141,14 +141,16 @@ SRCS = $(addprefix $(SRC_DIR)/, \
 	Sparse_Mod.f90 String_Mod.f90 HashStr_Mod.f90 InputTool_Mod.f90 \
 	ChemSys_Mod.f90 IO_Mod.f90 ChemKinInput_Mod.f90 fp_parameters.f90 \
 	fparser.f90 Rates_Mod.f90 Rosenbrock_Mod.f90 Integration_Mod.f90 \
-	Cminor.f90)
+	Cminor_Driver_Mod.f90 Cminor.f90)
 
 BASE_OBJS_OPT = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DIR)/%.o,$(SRCS))
 BASE_OBJS_DBG = $(patsubst $(SRC_DIR)/%.f90,$(LIB_DBG_DIR)/%.o,$(SRCS))
 
-# Insert ISSA objects after Integration_Mod.o, before Cminor.o
-OBJS_OPT = $(filter-out $(LIB_DIR)/Cminor.o,$(BASE_OBJS_OPT)) $(ISSA_OBJS_OPT) $(LIB_DIR)/Cminor.o
-OBJS_DBG = $(filter-out $(LIB_DBG_DIR)/Cminor.o,$(BASE_OBJS_DBG)) $(ISSA_OBJS_DBG) $(LIB_DBG_DIR)/Cminor.o
+# Insert ISSA objects after Integration_Mod.o, before Cminor_Driver_Mod.o / Cminor.o
+OBJS_OPT = $(filter-out $(LIB_DIR)/Cminor_Driver_Mod.o $(LIB_DIR)/Cminor.o,$(BASE_OBJS_OPT)) \
+	$(ISSA_OBJS_OPT) $(LIB_DIR)/Cminor_Driver_Mod.o $(LIB_DIR)/Cminor.o
+OBJS_DBG = $(filter-out $(LIB_DBG_DIR)/Cminor_Driver_Mod.o $(LIB_DBG_DIR)/Cminor.o,$(BASE_OBJS_DBG)) \
+	$(ISSA_OBJS_DBG) $(LIB_DBG_DIR)/Cminor_Driver_Mod.o $(LIB_DBG_DIR)/Cminor.o
 
 #------------------------------------------------------------------------------
 # Build targets
@@ -203,8 +205,9 @@ $(LIB_DBG_DIR)/issa_reduce.o: $(ISSA_DIR)/issa_reduce.f90 $(LIB_DBG_DIR)/issa_gr
 $(LIB_DIR)/issa_reduce_main.o: EXTERNALS/cminor-issa/issa_reduce_main.f90 $(LIB_DIR)/issa_reduce.o | $(LIB_DIR)
 	$(FC) $(FFLAGS_FREE) $(FFLAGS_OPT) $(INCLUDES_OPT) -c $< -o $@
 
-ISSA_REDUCE_SKIP = $(LIB_DIR)/Cminor.o $(LIB_DIR)/Integration_Mod.o $(LIB_DIR)/Rosenbrock_Mod.o \
-                   $(LIB_DIR)/NetCDF_Mod.o $(LIB_DIR)/Rates_Mod.o $(LIB_DIR)/ChemKinInput_Mod.o
+ISSA_REDUCE_SKIP = $(LIB_DIR)/Cminor.o $(LIB_DIR)/Cminor_Driver_Mod.o $(LIB_DIR)/Integration_Mod.o \
+                   $(LIB_DIR)/Rosenbrock_Mod.o $(LIB_DIR)/NetCDF_Mod.o $(LIB_DIR)/Rates_Mod.o \
+                   $(LIB_DIR)/ChemKinInput_Mod.o
 ISSA_REDUCE_OBJS = $(filter-out $(ISSA_REDUCE_SKIP),$(BASE_OBJS_OPT)) $(ISSA_OBJS_OPT) $(LIB_DIR)/issa_reduce_main.o
 
 issa_reduce: $(ISSA_REDUCE_OBJS)

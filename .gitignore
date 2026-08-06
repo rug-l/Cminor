@@ -28,6 +28,9 @@ Cminor
 Cminor_dbg
 issa_reduce
 
+# CMake out-of-source build
+build/
+
 # ini, sys, run files
 RUN/TESTRUN/**/*.chem
 RUN/TESTRUN/**/*test.nc

@@ -21,14 +21,61 @@ Cminor can be run in one of three configurations:
    - `FFLAGS_OPT`: Optimization flags
    - `FFLAGS_DBG`: Debug flags
 
-3. Build the program:
+3. Build the program (Makefile **or** CMake; both produce a working `cminor`):
+
+   **Makefile** (canonical for CI and existing workflows):
    ```bash
-   make Cminor     # for optimized version
-   # or
-   make Cminor_dbg # for debugging version
-   # or
-   make
+   make Cminor     # optimized
+   make Cminor_dbg # debug
    ```
+
+   **CMake** (out-of-source; preferred for library installs / ICON coupling later):
+
+   Full build (exe + static lib; ISSA ON by default if `EXTERNALS/cminor-issa` is present):
+   ```bash
+   cmake -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build
+   # build/cminor   build/libcminor_lib.a   (+ build/issa_reduce if ISSA ON)
+   ```
+
+   With ISSA (explicit; needs submodule sources under `EXTERNALS/cminor-issa`):
+   ```bash
+   cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMINOR_ENABLE_ISSA=ON
+   cmake --build build
+   ```
+
+   Without ISSA:
+   ```bash
+   cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMINOR_ENABLE_ISSA=OFF
+   cmake --build build
+   ```
+
+   Static library only (`libcminor_lib.a` — no `PROGRAM` / no CLI `getarg`):
+   ```bash
+   cmake -B build -DCMAKE_BUILD_TYPE=Release   # or -DCMINOR_ENABLE_ISSA=ON|OFF
+   cmake --build build --target cminor_lib
+   # artifact: build/libcminor_lib.a   modules: build/mod/
+   ```
+
+   Clean object files (keeps CMake cache / config):
+   ```bash
+   cmake --build build --target clean
+   ```
+
+   Remove the entire out-of-source tree (full wipe — re-run `cmake -B build …` after):
+   ```bash
+   rm -rf build
+   ```
+
+   Reconfigure (or wipe `build/`) when flipping `CMINOR_ENABLE_ISSA`.
+
+   Optional ISSA reduction (`EXTERNALS/cminor-issa`):
+   - Makefile: auto-enabled when the submodule sources are present (`-DISSA`).
+   - CMake: `CMINOR_ENABLE_ISSA` defaults ON if the submodule is present; force off with `-DCMINOR_ENABLE_ISSA=OFF`.
+
+   `cminor_lib` / `libcminor_lib.a` contains all modules and the driver API (`cminor_initialize` / `cminor_run` / …) but **not** the thin `PROGRAM` in `SRC/Cminor.f90` (no CLI `getarg` symbols). Link that executable separately, or call the driver from another host (e.g. ICON).
+
+   Time-loop design today is **option 1**: `Integrate` owns the Rosenbrock loop and NetCDF writes; `Cminor_Driver_Mod` owns init, outer NetCDF-window loop, ISSA, finalize. A later **option 2** would extract one Rosenbrock step and move NetCDF writes into the driver loop without changing CMake products or the thin `PROGRAM`.
 
 4. Install Python dependencies for regression tests:
    ```bash
@@ -66,6 +113,8 @@ Cminor can be run in one of three configurations:
 6. Execute a specific mechanism:
    ```bash
    ./Cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
+   # or, after CMake build:
+   ./build/cminor RUN/TESTRUN/SmallStratoKPP/SmallStratoKPP.run
    ```
 
 ## Continuous integration
@@ -81,4 +130,4 @@ export HDF5_DIR=/usr
 make Cminor
 ```
 
-On macOS runners, Homebrew `gcc` supplies `gfortran-*`; CI sets `FC` accordingly. The project still uses the Makefile as the canonical build; [fpm](https://github.com/fortran-lang/fpm) is optional for local workflows (`brew install fpm`) but not required for CI.
+On macOS runners, Homebrew `gcc` supplies `gfortran-*`; CI sets `FC` accordingly. Makefile remains the CI build path; CMake is dual-supported locally. [fpm](https://github.com/fortran-lang/fpm) is optional (`brew install fpm`) but not required for CI.
